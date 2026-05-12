@@ -15,6 +15,11 @@ if command -v gitleaks >/dev/null 2>&1; then
   exit 0
 fi
 
+if ! command -v rg >/dev/null 2>&1; then
+  echo "Secret scan requires gitleaks or ripgrep (rg); neither is installed." >&2
+  exit 1
+fi
+
 SCAN_OUTPUT="${REPORT_DIR}/secret-scan.txt"
 PATTERN='(AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|aws_secret_access_key[[:space:]]*=|-----BEGIN (RSA|OPENSSH|PRIVATE) KEY-----)'
 

@@ -124,6 +124,9 @@ pipeline {
             pip install -r models/requirements.txt
             pip install pytest ruff mypy pip-audit bandit
           fi
+          python3 -m venv .iac-venv
+          . .iac-venv/bin/activate
+          python -m pip install --upgrade pip
           pip install checkov
         '''
       }
@@ -269,7 +272,7 @@ EOF
             terraform validate
             tflint --init
             tflint --recursive
-            ../../../.venv/bin/checkov -d ../.. -o cli -o json --output-file-path ../../../reports/checkov
+            ../../../.iac-venv/bin/checkov -d ../.. -o cli -o json --output-file-path ../../../reports/checkov
           '''
         }
       }

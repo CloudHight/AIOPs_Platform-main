@@ -54,8 +54,9 @@ The agent needs:
 - Java, for Jenkins and scanner tooling
 - `tflint`
 - `checkov`
+- `gitleaks` or `ripgrep`
 
-The pipeline installs Python-only quality tools into `.venv`.
+The pipeline installs Python quality/model tools into `.venv` and Checkov into a separate `.iac-venv` so IaC scanner dependencies cannot downgrade SageMaker/runtime dependencies.
 
 The `infra/jenkins` bootstrap installs the baseline tools on the controller. Production teams may still prefer separate ephemeral agents for heavy model training and Terraform execution.
 

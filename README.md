@@ -74,6 +74,7 @@ Local or Jenkins agent tools:
 - Java for Jenkins/scanners
 - `tflint`
 - `checkov`
+- `gitleaks` or `ripgrep`
 
 AWS prerequisites:
 

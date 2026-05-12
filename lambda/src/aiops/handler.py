@@ -105,11 +105,11 @@ def detect_signals(instance_id: str, config: RuntimeConfig) -> list[AnomalySigna
     log_payload = {"instances": [{"instance_id": instance_id, **log_evidence}]}
     try:
         log_response = invoke_json(config.log_model_endpoint, log_payload)
-        error_count = float(log_evidence.get("error_count", 0))
+        error_count = _float_evidence(log_evidence, "error_count")
         log_score = extract_score(log_response, fallback=min(error_count / 10, 1.0))
     except Exception as exc:
         logger.warning("log_inference_failed_using_log_fallback", extra={"instance_id": instance_id, "error": str(exc)})
-        error_count = float(log_evidence.get("error_count", 0))
+        error_count = _float_evidence(log_evidence, "error_count")
         log_score = min(error_count / 10, 1.0)
 
     return [
@@ -238,6 +238,13 @@ def _severity(score: float, threshold: float) -> str:
     if score >= threshold * 1.2:
         return "high"
     return "medium"
+
+
+def _float_evidence(evidence: dict[str, Any], key: str, default: float = 0.0) -> float:
+    value = evidence.get(key, default)
+    if isinstance(value, (str, int, float)):
+        return float(value)
+    return default
 
 
 def _is_sqs_event(event: dict[str, Any]) -> bool:

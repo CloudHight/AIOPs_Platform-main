@@ -8,3 +8,10 @@ stress-ng --cpu 4 --cpu-load 75 --timeout 600s
 # generate some traffic to create logs
 
 for i in {1..300}; do curl -s http://localhost/ > /dev/null; sleep 0.1; done
+
+
+cpu-model-image-uri
+382416733822.dkr.ecr.us-east-1.amazonaws.com/randomcutforest:1
+
+log-model-image-uri
+763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:1.13-transformers4.26-gpu-py39-cu117-ubuntu20.04
