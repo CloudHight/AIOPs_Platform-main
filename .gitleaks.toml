@@ -1,0 +1,17 @@
+title = "AIOPs Platform gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated dependency and CI artifact paths"
+paths = [
+  '''(^|/)\.venv/''',
+  '''(^|/)\.iac-venv/''',
+  '''(^|/)dist/''',
+  '''(^|/)reports/''',
+  '''(^|/)\.terraform/''',
+  '''(^|/)jenkins-pipeline-logs($| )''',
+  '''(^|/)logs$''',
+  '''\.tfstate(\..*)?$''',
+]

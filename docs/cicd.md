@@ -54,7 +54,7 @@ The agent needs:
 - Java, for Jenkins and scanner tooling
 - `tflint`
 - `checkov`
-- `gitleaks` or `ripgrep`
+- `gitleaks` preferred; standard `grep` fallback is supported
 
 The pipeline installs Python quality/model tools into `.venv` and Checkov into a separate `.iac-venv` so IaC scanner dependencies cannot downgrade SageMaker/runtime dependencies.
 

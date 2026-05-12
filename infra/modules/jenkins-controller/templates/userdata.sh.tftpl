@@ -31,7 +31,6 @@ dnf install -y \
   jq \
   python3 \
   python3-pip \
-  ripgrep \
   unzip \
   zip \
   tar \
@@ -248,6 +247,14 @@ mkdir -p /tmp/tflint
 unzip -o /tmp/tflint.zip -d /tmp/tflint
 install -m 0755 /tmp/tflint/tflint /usr/local/bin/tflint
 rm -rf /tmp/tflint /tmp/tflint.zip
+
+# ------------------------------------------------------------
+# Gitleaks secret scanner
+# ------------------------------------------------------------
+wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
+tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+sudo mv gitleaks /usr/local/bin/
+gitleaks version
 
 # ------------------------------------------------------------
 # tfsec
