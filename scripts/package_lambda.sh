@@ -28,7 +28,15 @@ mkdir -p "$(dirname "${ZIP_PATH}")"
   find . -type f | LC_ALL=C sort | zip -X -q "${ZIP_PATH}" -@
 )
 
-shasum -a 256 "${ZIP_PATH}" | awk '{print $1}' > "${ZIP_PATH}.sha256"
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum "${ZIP_PATH}" | awk '{print $1}' > "${ZIP_PATH}.sha256"
+elif command -v shasum >/dev/null 2>&1; then
+  shasum -a 256 "${ZIP_PATH}" | awk '{print $1}' > "${ZIP_PATH}.sha256"
+else
+  echo "sha256sum or shasum is required to create ${ZIP_PATH}.sha256" >&2
+  exit 1
+fi
+
 openssl dgst -sha256 -binary "${ZIP_PATH}" | openssl base64 -A > "${ZIP_PATH}.base64sha256"
 
 printf 'Packaged Lambda artifact: %s\n' "${ZIP_PATH}"
