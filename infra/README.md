@@ -187,6 +187,9 @@ aws-deploy-role-arn-stage
 aws-deploy-role-arn-prod
 model-artifact-bucket
 lambda-artifact-bucket
+sagemaker-execution-role-arn
+cpu-model-image-uri
+log-model-image-uri
 ```
 
 `infra/jenkins` creates deploy roles for `dev`, `stage`, and `prod` by default:
@@ -298,12 +301,12 @@ terraform -chdir=infra/jenkins init
 terraform -chdir=infra/jenkins validate
 ```
 
-Jenkins should also run IaC/security checks when available:
+Jenkins runs IaC/security checks as required gates:
 
 ```bash
 tflint --recursive
 checkov -d infra
-tfsec infra
+scripts/secret_scan.sh
 ```
 
 ## Smoke Testing

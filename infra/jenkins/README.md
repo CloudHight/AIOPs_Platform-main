@@ -59,6 +59,9 @@ aws-deploy-role-arn-stage
 aws-deploy-role-arn-prod
 model-artifact-bucket
 lambda-artifact-bucket
+sagemaker-execution-role-arn
+cpu-model-image-uri
+log-model-image-uri
 ```
 
 Use the created deploy role ARNs from:

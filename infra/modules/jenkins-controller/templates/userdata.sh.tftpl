@@ -4,12 +4,24 @@ set -Eeuxo pipefail
 exec > >(tee /var/log/jenkins-bootstrap.log | logger -t jenkins-bootstrap -s 2>/dev/console) 2>&1
 trap 'echo "ERROR: bootstrap failed on line $LINENO"' ERR
 
-echo "--- Starting Jenkins Bootstrap: $(date) ---"
+echo "============================================================"
+echo "Starting AIOps Jenkins bootstrap on Amazon Linux 2023"
+echo "Started at: $(date)"
+echo "============================================================"
 
+# ------------------------------------------------------------
+# Base OS update
+# ------------------------------------------------------------
 dnf update -y
 
+# ------------------------------------------------------------
+# Base packages
+#
+# IMPORTANT:
 # Amazon Linux 2023 ships with curl-minimal by default.
-# Do NOT install the full "curl" package unless you intentionally swap curl-minimal out.
+# Do not install the full "curl" package unless you deliberately
+# swap curl-minimal for curl-full.
+# ------------------------------------------------------------
 dnf install -y \
   ca-certificates \
   curl-minimal \
@@ -19,48 +31,274 @@ dnf install -y \
   jq \
   python3 \
   python3-pip \
-  python3-virtualenv \
   unzip \
   zip \
+  tar \
+  gzip \
   xfsprogs \
   docker \
   amazon-cloudwatch-agent
 
+# ------------------------------------------------------------
+# Docker
+# ------------------------------------------------------------
 systemctl enable --now docker
 
-# Jenkins official RPM repository
+# ------------------------------------------------------------
+# Jenkins repository and Jenkins installation
+#
+# Jenkins now uses the rpm-stable repository and 2026 signing key.
+# ------------------------------------------------------------
 curl -fsSL https://pkg.jenkins.io/rpm-stable/jenkins.repo \
   -o /etc/yum.repos.d/jenkins.repo
+
+rpm --import https://pkg.jenkins.io/rpm-stable/jenkins.io-2026.key
 
 dnf makecache -y
 dnf install -y jenkins
 
-systemctl daemon-reload
-systemctl enable --now jenkins
-systemctl enable --now amazon-cloudwatch-agent
+# ------------------------------------------------------------
+# Optional dedicated Jenkins home volume
+#
+# Terraform template variable expected:
+#   jenkins_home_device_name
+#
+# Example values:
+#   /dev/xvdf
+#   /dev/nvme1n1
+#
+# If this value is empty or the device is not found, Jenkins will
+# continue using the root volume at /var/lib/jenkins.
+# ------------------------------------------------------------
+DEVICE="${jenkins_home_device_name}"
 
+if [ -n "$DEVICE" ]; then
+  echo "Waiting for Jenkins home device: $DEVICE"
+
+  for attempt in $(seq 1 60); do
+    if [ -b "$DEVICE" ]; then
+      echo "Found block device: $DEVICE"
+      break
+    fi
+
+    echo "Device $DEVICE not found yet. Attempt $attempt/60..."
+    sleep 5
+  done
+
+  if [ -b "$DEVICE" ]; then
+    if ! blkid "$DEVICE" >/dev/null 2>&1; then
+      echo "Creating XFS filesystem on $DEVICE"
+      mkfs -t xfs -f "$DEVICE"
+    else
+      echo "$DEVICE already has a filesystem"
+    fi
+
+    mkdir -p /var/lib/jenkins
+
+    UUID="$(blkid -s UUID -o value "$DEVICE")"
+
+    if [ -n "$UUID" ] && ! grep -q "UUID=$UUID " /etc/fstab; then
+      echo "UUID=$UUID /var/lib/jenkins xfs defaults,nofail 0 2" >> /etc/fstab
+    fi
+
+    if ! mountpoint -q /var/lib/jenkins; then
+      mount /var/lib/jenkins
+    fi
+  else
+    echo "WARNING: $DEVICE was not found. Jenkins will use the root volume."
+    mkdir -p /var/lib/jenkins
+  fi
+else
+  echo "No Jenkins home device provided. Jenkins will use the root volume."
+  mkdir -p /var/lib/jenkins
+fi
+
+# ------------------------------------------------------------
+# Jenkins permissions
+# ------------------------------------------------------------
+chown -R jenkins:jenkins /var/lib/jenkins
 usermod -aG docker jenkins
 
+# ------------------------------------------------------------
+# Environment profile for Jenkins/admin users
+# ------------------------------------------------------------
+cat >/etc/profile.d/aiops-jenkins.sh <<'EOF'
+export AWS_REGION="$${AWS_REGION:-us-east-1}"
+export TF_IN_AUTOMATION=true
+export PYTHONUNBUFFERED=1
+export VIRTUAL_ENV="/opt/aiops-venv"
+export PATH="/opt/aiops-venv/bin:$PATH"
+EOF
+
+chmod 0644 /etc/profile.d/aiops-jenkins.sh
+
+# ------------------------------------------------------------
+# Terraform CLI
+# ------------------------------------------------------------
 TERRAFORM_VERSION="1.11.1"
+
 curl -fsSL "https://releases.hashicorp.com/terraform/$${TERRAFORM_VERSION}/terraform_$${TERRAFORM_VERSION}_linux_amd64.zip" \
   -o /tmp/terraform.zip
+
 unzip -o /tmp/terraform.zip -d /usr/local/bin
 chmod +x /usr/local/bin/terraform
 rm -f /tmp/terraform.zip
 
+# ------------------------------------------------------------
+# AWS CLI v2
+# ------------------------------------------------------------
 ARCH="$(uname -m)"
-if [ "$ARCH" = "x86_64" ]; then
-  AWSCLI_ARCH="x86_64"
-else
-  AWSCLI_ARCH="aarch64"
-fi
+
+case "$ARCH" in
+  x86_64)
+    AWSCLI_ARCH="x86_64"
+    ;;
+  aarch64|arm64)
+    AWSCLI_ARCH="aarch64"
+    ;;
+  *)
+    echo "Unsupported architecture for AWS CLI: $ARCH"
+    exit 1
+    ;;
+esac
 
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$${AWSCLI_ARCH}.zip" \
   -o /tmp/awscliv2.zip
+
 unzip -q /tmp/awscliv2.zip -d /tmp
 /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
 rm -rf /tmp/aws /tmp/awscliv2.zip
 
+# ------------------------------------------------------------
+# Python tooling for Jenkins SageMaker orchestration
+# ------------------------------------------------------------
+
+mkdir -p /var/lib/jenkins/.venvs
+
+rm -rf /var/lib/jenkins/.venvs/aiops
+rm -rf /var/lib/jenkins/.venvs/iac
+rm -rf /opt/aiops-venv
+
+python3 -m venv /var/lib/jenkins/.venvs/aiops
+
+/var/lib/jenkins/.venvs/aiops/bin/python -m pip install --upgrade pip setuptools wheel
+
+/var/lib/jenkins/.venvs/aiops/bin/python -m pip install --no-cache-dir \
+  "boto3<2" \
+  "botocore<2" \
+  "sagemaker>=2.200,<3" \
+  "pandas<2.4" \
+  "numpy<2.1" \
+  "scikit-learn<1.7" \
+  pytest \
+  ruff \
+  mypy \
+  bandit \
+  pip-audit
+
+python3 -m venv /var/lib/jenkins/.venvs/iac
+
+/var/lib/jenkins/.venvs/iac/bin/python -m pip install --upgrade pip setuptools wheel
+
+/var/lib/jenkins/.venvs/iac/bin/python -m pip install --no-cache-dir \
+  checkov
+
+ln -sf /var/lib/jenkins/.venvs/aiops/bin/python /usr/local/bin/aiops-python
+ln -sf /var/lib/jenkins/.venvs/aiops/bin/pip /usr/local/bin/aiops-pip
+ln -sf /var/lib/jenkins/.venvs/aiops/bin/pytest /usr/local/bin/pytest
+ln -sf /var/lib/jenkins/.venvs/aiops/bin/ruff /usr/local/bin/ruff
+ln -sf /var/lib/jenkins/.venvs/aiops/bin/mypy /usr/local/bin/mypy
+ln -sf /var/lib/jenkins/.venvs/aiops/bin/bandit /usr/local/bin/bandit
+ln -sf /var/lib/jenkins/.venvs/aiops/bin/pip-audit /usr/local/bin/pip-audit
+ln -sf /var/lib/jenkins/.venvs/iac/bin/checkov /usr/local/bin/checkov
+
+chown -R jenkins:jenkins /var/lib/jenkins/.venvs
+
+cat >/etc/profile.d/aiops-python.sh <<'EOF'
+export AIOPS_VENV="/var/lib/jenkins/.venvs/aiops"
+export IAC_VENV="/var/lib/jenkins/.venvs/iac"
+export PATH="/var/lib/jenkins/.venvs/aiops/bin:/var/lib/jenkins/.venvs/iac/bin:$PATH"
+EOF
+
+chmod 0644 /etc/profile.d/aiops-python.sh
+
+# ------------------------------------------------------------
+# TFLint
+# ------------------------------------------------------------
+TFLINT_VERSION="v0.55.1"
+
+case "$ARCH" in
+  x86_64)
+    TFLINT_ARCH="linux_amd64"
+    ;;
+  aarch64|arm64)
+    TFLINT_ARCH="linux_arm64"
+    ;;
+  *)
+    echo "Unsupported architecture for TFLint: $ARCH"
+    exit 1
+    ;;
+esac
+
+curl -fsSLo /tmp/tflint.zip \
+  "https://github.com/terraform-linters/tflint/releases/download/$${TFLINT_VERSION}/tflint_$${TFLINT_ARCH}.zip"
+
+mkdir -p /tmp/tflint
+unzip -o /tmp/tflint.zip -d /tmp/tflint
+install -m 0755 /tmp/tflint/tflint /usr/local/bin/tflint
+rm -rf /tmp/tflint /tmp/tflint.zip
+
+# ------------------------------------------------------------
+# tfsec
+#
+# Note:
+# tfsec is now part of Trivy, but this installs the tfsec command
+# for compatibility with older Jenkins pipelines.
+# ------------------------------------------------------------
+TFSEC_VERSION="v1.28.14"
+
+case "$ARCH" in
+  x86_64)
+    TFSEC_ARCH="amd64"
+    ;;
+  aarch64|arm64)
+    TFSEC_ARCH="arm64"
+    ;;
+  *)
+    echo "Unsupported architecture for tfsec: $ARCH"
+    exit 1
+    ;;
+esac
+
+curl -fsSLo /tmp/tfsec \
+  "https://github.com/aquasecurity/tfsec/releases/download/$${TFSEC_VERSION}/tfsec-linux-$${TFSEC_ARCH}"
+
+install -m 0755 /tmp/tfsec /usr/local/bin/tfsec
+rm -f /tmp/tfsec
+
+# ------------------------------------------------------------
+# Optional: create a basic TFLint config for Jenkins jobs
+# ------------------------------------------------------------
+mkdir -p /var/lib/jenkins/.tflint.d
+
+cat >/var/lib/jenkins/.tflint.hcl <<'EOF'
+plugin "terraform" {
+  enabled = true
+  preset  = "recommended"
+}
+EOF
+
+chown -R jenkins:jenkins /var/lib/jenkins/.tflint.hcl /var/lib/jenkins/.tflint.d
+
+# ------------------------------------------------------------
+# Start Jenkins
+# ------------------------------------------------------------
+systemctl daemon-reload
+systemctl enable --now jenkins
+
+# ------------------------------------------------------------
+# Message of the day
+# ------------------------------------------------------------
 cat >/etc/motd <<'EOF'
 AIOps Jenkins controller
 
@@ -71,12 +309,57 @@ Access:
 Initial admin password:
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 
+Installed tools:
+- Docker
+- Jenkins
+- Terraform
+- AWS CLI v2
+- Python virtual environment: /opt/aiops-venv
+- Checkov
+- TFLint
+- tfsec
+- pytest
+- ruff
+- mypy
+- bandit
+- pip-audit
+
 Required Jenkins credentials:
 - aws-deploy-role-arn-dev
 - aws-deploy-role-arn-stage
 - aws-deploy-role-arn-prod
 - model-artifact-bucket
 - lambda-artifact-bucket
+- sagemaker-execution-role-arn
+- cpu-model-image-uri
+- log-model-image-uri
 EOF
 
-echo "--- Jenkins Bootstrap Completed Successfully: $(date) ---"
+# ------------------------------------------------------------
+# Final verification
+# ------------------------------------------------------------
+echo "============================================================"
+echo "Installed versions"
+echo "============================================================"
+
+java -version || true
+docker --version || true
+terraform version || true
+aws --version || true
+/opt/aiops-venv/bin/python --version || true
+/opt/aiops-venv/bin/pip --version || true
+checkov --version || true
+tflint --version || true
+tfsec --version || true
+
+echo "============================================================"
+echo "Service status"
+echo "============================================================"
+
+systemctl --no-pager status docker || true
+systemctl --no-pager status jenkins || true
+
+echo "============================================================"
+echo "AIOps Jenkins bootstrap completed successfully"
+echo "Completed at: $(date)"
+echo "============================================================"

@@ -3,12 +3,12 @@ terraform {
 
   # Configure after running infra/backend if Jenkins state should be remote.
   backend "s3" {
-    bucket         = "motiva-aiops-terraform-state"
-    key            = "aiops/jenkins/terraform.tfstate"
-    region         = "us-east-1"
-    use_lockfile   = true
+    bucket       = "motiva-aiops-terraform-state"
+    key          = "aiops/jenkins/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true
     # dynamodb_table = "motiva-aiops-terraform-locks"
-    encrypt        = true
+    encrypt = true
   }
 
   required_providers {
