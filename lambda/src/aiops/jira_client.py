@@ -6,6 +6,7 @@ import base64
 import json
 from dataclasses import dataclass
 from typing import Any
+from urllib import parse
 from urllib import request
 from urllib.error import HTTPError, URLError
 
@@ -21,12 +22,22 @@ class JiraCredentials:
     api_token: str
 
 
+def _validated_jira_api_url(api_url: str) -> str:
+    normalized = api_url.strip().rstrip("/")
+    parsed = parse.urlparse(normalized)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise JiraError("Jira API URL must be an absolute HTTPS URL with a hostname")
+    if parsed.username or parsed.password:
+        raise JiraError("Jira API URL must not contain embedded credentials")
+    return parse.urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
+
+
 def load_jira_credentials(secret_id: str, client=None) -> JiraCredentials:
     secrets = client or aws_clients.secretsmanager()
     response = secrets.get_secret_value(SecretId=secret_id)
     secret = json.loads(response["SecretString"])
     credentials = JiraCredentials(
-        api_url=secret.get("JIRA_API_URL", "").rstrip("/"),
+        api_url=_validated_jira_api_url(secret.get("JIRA_API_URL", "")),
         user_email=secret.get("JIRA_USER_EMAIL", ""),
         api_token=secret.get("JIRA_API_TOKEN", ""),
     )
@@ -37,7 +48,11 @@ def load_jira_credentials(secret_id: str, client=None) -> JiraCredentials:
 
 class JiraClient:
     def __init__(self, credentials: JiraCredentials, project_key: str, issue_type: str = "Incident") -> None:
-        self.credentials = credentials
+        self.credentials = JiraCredentials(
+            api_url=_validated_jira_api_url(credentials.api_url),
+            user_email=credentials.user_email,
+            api_token=credentials.api_token,
+        )
         self.project_key = project_key
         self.issue_type = issue_type
 
@@ -92,11 +107,17 @@ class JiraClient:
         ])
 
     def _request(self, method: str, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if not path.startswith("/"):
+            raise JiraError("Jira request path must start with '/'")
+        url = parse.urljoin(f"{self.credentials.api_url}/", path.lstrip("/"))
+        parsed_url = parse.urlparse(url)
+        if parsed_url.scheme != "https" or parsed_url.netloc != parse.urlparse(self.credentials.api_url).netloc:
+            raise JiraError("Jira request URL failed validation")
         token = f"{self.credentials.user_email}:{self.credentials.api_token}".encode("utf-8")
         auth = base64.b64encode(token).decode("ascii")
         data = json.dumps(payload).encode("utf-8")
         req = request.Request(
-            f"{self.credentials.api_url}{path}",
+            url,
             data=data,
             method=method,
             headers={
@@ -106,7 +127,8 @@ class JiraClient:
             },
         )
         try:
-            with request.urlopen(req, timeout=30) as response:
+            # The URL is validated above as an HTTPS request to the configured Jira host.
+            with request.urlopen(req, timeout=30) as response:  # nosec B310
                 body = response.read().decode("utf-8")
         except (HTTPError, URLError, TimeoutError) as exc:
             raise JiraError(f"Jira request failed: {exc}") from exc

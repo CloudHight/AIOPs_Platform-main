@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import time
+
+from botocore.exceptions import BotoCoreError, ClientError
 
 from . import aws_clients
 
 
 ERROR_PATTERNS = (" 5", "error", "exception", "timeout", "upstream")
+logger = logging.getLogger(__name__)
 
 
 def recent_nginx_errors(instance_id: str, minutes: int = 5, client=None) -> dict[str, object]:
@@ -26,7 +30,11 @@ def recent_nginx_errors(instance_id: str, minutes: int = 5, client=None) -> dict
                 filterPattern=instance_id,
                 limit=25,
             )
-        except Exception:
+        except (BotoCoreError, ClientError) as exc:
+            logger.warning(
+                "cloudwatch_log_read_failed",
+                extra={"log_group": group, "instance_id": instance_id, "error": str(exc)},
+            )
             continue
         for event in response.get("events", []):
             message = event.get("message", "")
