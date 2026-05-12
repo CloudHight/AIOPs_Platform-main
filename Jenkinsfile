@@ -259,6 +259,16 @@ PY
     stage('Terraform Init') {
       steps {
         withCredentials([string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')]) {
+          sh '''
+            set -eu
+            set +x
+            CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-backend-${BUILD_NUMBER}")"
+            export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
+            export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
+            export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
+            export AWS_DEFAULT_REGION="${AWS_REGION}"
+            scripts/validate_terraform_backend.sh "${TF_ROOT}"
+          '''
           dir("${env.TF_ROOT}") {
             sh '''
               set -eu
@@ -271,6 +281,11 @@ PY
               terraform init -input=false
             '''
           }
+        }
+      }
+      post {
+        always {
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/terraform-backend-*.txt'
         }
       }
     }

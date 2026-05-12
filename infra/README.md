@@ -114,6 +114,16 @@ Then initialize each environment with the remote backend:
 terraform -chdir=infra/envs/dev init -migrate-state
 ```
 
+Validate the backend from the same AWS identity that will run Terraform:
+
+```bash
+scripts/validate_terraform_backend.sh infra/envs/dev
+```
+
+Jenkins runs this validation before `terraform init`. A missing or unreachable
+DynamoDB lock table is a backend bootstrap failure and should be fixed in
+`infra/backend`; do not disable state locking in the pipeline.
+
 ### Jenkins Controller
 
 ```bash
@@ -156,6 +166,7 @@ Jenkins is responsible for:
 - uploading approved model artifacts to S3 immutable paths
 - packaging the Lambda zip
 - writing artifact tfvars for Terraform
+- validating the remote-state backend bucket and DynamoDB lock table
 - running `terraform fmt`, `terraform init`, `terraform validate`, and scanning
 - creating and archiving a saved Terraform plan
 - requiring approval for stage/prod applies

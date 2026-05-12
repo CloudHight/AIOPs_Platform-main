@@ -74,6 +74,7 @@ The current RCF and BERT training scripts still use SageMaker SDK role discovery
 6. `Model Build and Validation`
 7. `Package Lambda`
 8. `Terraform Init`
+   - validates the remote-state S3 bucket and DynamoDB lock table before init
 9. `Terraform Quality`
 10. `Terraform Plan`
 11. `Approval`
