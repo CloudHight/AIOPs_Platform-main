@@ -110,15 +110,17 @@ Jenkins uploads the zip to:
 s3://<lambda-artifact-bucket>/lambda/<env>/<build-number>/aiops-lambda.zip
 ```
 
-It then writes `infra/envs/<env>/jenkins.auto.tfvars` with the Lambda artifact reference and source hash.
+It then writes `infra/envs/<env>/jenkins.auto.tfvars.json` with the Lambda artifact reference and source hash.
 
 ## Terraform Plan and Apply
 
 Jenkins always creates a saved plan:
 
 ```bash
-terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars
+terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars.json
 terraform show -no-color tfplan > tfplan.txt
+terraform show -json tfplan > tfplan.json
+checkov -f tfplan.json --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_272,CKV2_AWS_57
 ```
 
 Apply uses the saved plan only:

@@ -50,6 +50,11 @@ variable "remediation_cooldown_minutes" {
   default     = 60
 }
 
+variable "kms_key_arn" {
+  description = "KMS key ARN used to encrypt SecureString runtime parameters."
+  type        = string
+}
+
 variable "common_tags" {
   description = "Common tags to apply to resources."
   type        = map(string)

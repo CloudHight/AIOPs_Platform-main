@@ -8,6 +8,7 @@ This root is intended for fast validation of the monitored EC2 workload, optiona
 
 Always deployed:
 
+- environment KMS key and alias for service encryption
 - EC2 monitored workload
 - workload IAM role and instance profile
 - HTTP security group
@@ -33,19 +34,20 @@ Optional when `enable_aiops_control_plane = true`:
 
 ## Defaults
 
-Dev defaults are intentionally demo-friendly:
+Dev defaults now start from the same hardened baseline as stage/prod:
 
 ```hcl
-allowed_http_cidrs           = ["0.0.0.0/0"]
-workload_instance_type       = "t2.medium"
-workload_associate_public_ip = true
+allowed_http_cidrs           = []
+workload_instance_type       = "t3.medium"
+workload_associate_public_ip = false
+workload_log_retention_days  = 365
 enable_aiops_control_plane   = false
 enable_sagemaker_endpoints   = false
 auto_remediation_enabled     = false
 dry_run                      = true
 ```
 
-For shared or internet-facing accounts, restrict `allowed_http_cidrs` before apply.
+The workload uses SSM Session Manager for administration, IMDSv2, encrypted EBS, detailed monitoring, KMS-encrypted logs, and HTTPS-only outbound security group egress. If you intentionally need a public demo endpoint in dev, set `allowed_http_cidrs` and `workload_associate_public_ip` explicitly in `terraform.tfvars` and document that exception for the run.
 
 ## Backend
 

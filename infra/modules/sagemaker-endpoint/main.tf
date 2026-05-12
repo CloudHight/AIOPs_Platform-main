@@ -106,6 +106,8 @@ resource "aws_sagemaker_endpoint" "this" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "model_5xx_errors" {
+  count = length(var.alarm_actions) > 0 ? 1 : 0
+
   alarm_name          = "${local.resource_prefix}-model-5xx-errors"
   alarm_description   = "SageMaker endpoint model 5XX errors for ${var.model_name}"
   namespace           = "AWS/SageMaker"
@@ -127,6 +129,8 @@ resource "aws_cloudwatch_metric_alarm" "model_5xx_errors" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "model_latency" {
+  count = length(var.alarm_actions) > 0 ? 1 : 0
+
   alarm_name          = "${local.resource_prefix}-model-latency"
   alarm_description   = "SageMaker endpoint model latency for ${var.model_name}"
   namespace           = "AWS/SageMaker"

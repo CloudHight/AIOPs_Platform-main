@@ -24,13 +24,13 @@ variable "project" {
 variable "allowed_http_cidrs" {
   description = "CIDR blocks allowed to reach the demo workload over HTTP."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  default     = []
 }
 
 variable "workload_instance_type" {
   description = "EC2 instance type for the monitored workload."
   type        = string
-  default     = "t2.medium"
+  default     = "t3.medium"
 }
 
 variable "workload_app_image" {
@@ -42,13 +42,13 @@ variable "workload_app_image" {
 variable "workload_associate_public_ip" {
   description = "Whether the dev workload instance should receive a public IP."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "workload_log_retention_days" {
   description = "CloudWatch retention for Nginx workload logs."
   type        = number
-  default     = 30
+  default     = 365
 }
 
 variable "enable_aiops_control_plane" {

@@ -32,7 +32,7 @@ variable "allowed_http_cidrs" {
 variable "instance_type" {
   description = "EC2 instance type for the monitored workload."
   type        = string
-  default     = "t2.medium"
+  default     = "t3.medium"
 }
 
 variable "app_image" {
@@ -56,6 +56,12 @@ variable "subnet_id" {
 variable "associate_public_ip_address" {
   description = "Whether to associate a public IP address with the workload instance."
   type        = bool
+  default     = false
+}
+
+variable "ebs_optimized" {
+  description = "Whether the workload instance should use EBS optimization."
+  type        = bool
   default     = true
 }
 
@@ -74,7 +80,7 @@ variable "monitoring_tag_value" {
 variable "log_retention_days" {
   description = "CloudWatch retention for Nginx workload logs."
   type        = number
-  default     = 30
+  default     = 365
 
   validation {
     condition     = contains([7, 14, 30, 60, 90, 180, 365, 731, 1827, 3653], var.log_retention_days)

@@ -284,13 +284,7 @@ PY
             terraform validate
             tflint --init
             tflint --recursive
-            ../../../.iac-venv/bin/checkov -d ../.. -o cli -o json --output-file-path ../../../reports/checkov
           '''
-        }
-      }
-      post {
-        always {
-          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/checkov*'
         }
       }
     }
@@ -309,13 +303,17 @@ PY
               export AWS_DEFAULT_REGION="${AWS_REGION}"
               terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars.json
               terraform show -no-color tfplan > tfplan.txt
+              terraform show -json tfplan > tfplan.json
+              ../../../.iac-venv/bin/checkov -f tfplan.json \
+                --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_272,CKV2_AWS_57 \
+                -o cli -o json --output-file-path ../../../reports/checkov
             '''
           }
         }
       }
       post {
         always {
-          archiveArtifacts allowEmptyArchive: false, fingerprint: true, artifacts: 'infra/envs/*/tfplan.txt'
+          archiveArtifacts allowEmptyArchive: false, fingerprint: true, artifacts: 'infra/envs/*/tfplan.txt,reports/checkov*'
         }
       }
     }

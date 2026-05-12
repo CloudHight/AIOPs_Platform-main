@@ -14,7 +14,7 @@ data "aws_subnets" "selected" {
 
 data "aws_ami" "amazon_linux" {
   most_recent = true
-  owners      = ["amazon"]
+  owners      = ["137112412989"]
 
   filter {
     name   = "name"
@@ -103,10 +103,10 @@ resource "aws_security_group" "workload" {
   }
 
   egress {
-    description = "Outbound access for package install, SSM, CloudWatch, and image pull"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "Outbound HTTPS for SSM, CloudWatch, ECR, package install, and image pull"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -116,18 +116,31 @@ resource "aws_security_group" "workload" {
 }
 
 resource "aws_instance" "workload" {
+  #checkov:skip=CKV_AWS_46: User data contains bootstrap configuration only; credentials are not embedded and access uses IAM/SSM.
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
   subnet_id                   = local.subnet_id
   vpc_security_group_ids      = [aws_security_group.workload.id]
   iam_instance_profile        = aws_iam_instance_profile.workload.name
   associate_public_ip_address = var.associate_public_ip_address
+  monitoring                  = true
+  ebs_optimized               = var.ebs_optimized
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/templates/userdata.sh.tftpl", {
     app_image                   = var.app_image
     nginx_access_log_group_name = var.nginx_access_log_group_name
     nginx_error_log_group_name  = var.nginx_error_log_group_name
   })
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+  }
+
+  root_block_device {
+    encrypted = true
+  }
 
   credit_specification {
     cpu_credits = "unlimited"

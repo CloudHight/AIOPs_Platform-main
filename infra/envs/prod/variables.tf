@@ -48,7 +48,7 @@ variable "workload_associate_public_ip" {
 variable "workload_log_retention_days" {
   description = "CloudWatch retention for Nginx workload logs."
   type        = number
-  default     = 90
+  default     = 365
 }
 
 variable "enable_aiops_control_plane" {

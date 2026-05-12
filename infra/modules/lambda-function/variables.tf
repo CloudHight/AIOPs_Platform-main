@@ -56,6 +56,29 @@ variable "ephemeral_storage_mb" {
   default     = 512
 }
 
+variable "reserved_concurrent_executions" {
+  description = "Reserved concurrency for the anomaly detection Lambda."
+  type        = number
+  default     = 5
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch retention for Lambda logs."
+  type        = number
+  default     = 365
+
+  validation {
+    condition     = contains([7, 14, 30, 60, 90, 180, 365, 731, 1827, 3653], var.log_retention_days)
+    error_message = "log_retention_days must be a valid CloudWatch Logs retention value."
+  }
+}
+
+variable "kms_key_arn" {
+  description = "Optional KMS key ARN for Lambda logs and SecureString parameter reads."
+  type        = string
+  default     = null
+}
+
 variable "s3_object_version" {
   description = "Optional version ID for S3 Lambda artifact."
   type        = string

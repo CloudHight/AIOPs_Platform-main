@@ -125,6 +125,18 @@ resource "aws_iam_role_policy" "lambda" {
         Resource = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/AnomalyDetection/${var.environment}/*"
       },
       {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt"
+        ]
+        Resource = var.kms_key_arn == null ? "*" : var.kms_key_arn
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${data.aws_region.current.name}.amazonaws.com"
+          }
+        }
+      },
+      {
         Effect   = "Allow"
         Action   = "ssm:SendCommand"
         Resource = "arn:aws:ssm:${data.aws_region.current.name}::document/AWS-RunShellScript"
@@ -178,12 +190,15 @@ resource "aws_iam_role_policy" "lambda" {
 
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.function_name}"
-  retention_in_days = 30
+  retention_in_days = var.log_retention_days
+  kms_key_id        = var.kms_key_arn
 
   tags = var.common_tags
 }
 
 resource "aws_lambda_function" "anomaly_detection" {
+  #checkov:skip=CKV_AWS_117: Function calls AWS public service APIs only; VPC attachment is environment-specific and would require NAT or VPC endpoints.
+  #checkov:skip=CKV_AWS_272: Code signing is a planned promotion gate; Jenkins currently verifies deterministic package hashes before Terraform deployment.
   function_name = local.function_name
   description   = "Detects CPU and log anomalies, creates Jira tickets, and triggers auto-remediation"
   role          = aws_iam_role.lambda.arn
@@ -191,6 +206,9 @@ resource "aws_lambda_function" "anomaly_detection" {
   runtime       = var.runtime
   timeout       = var.timeout_seconds
   memory_size   = var.memory_size_mb
+  kms_key_arn   = var.kms_key_arn
+
+  reserved_concurrent_executions = var.reserved_concurrent_executions
 
   filename          = var.local_package_path
   s3_bucket         = var.lambda_artifact_bucket
@@ -204,6 +222,10 @@ resource "aws_lambda_function" "anomaly_detection" {
 
   tracing_config {
     mode = "Active"
+  }
+
+  dead_letter_config {
+    target_arn = var.dlq_arn
   }
 
   environment {

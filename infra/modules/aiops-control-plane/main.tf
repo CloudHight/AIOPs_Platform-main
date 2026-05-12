@@ -55,6 +55,7 @@ module "ssm_parameters" {
   dry_run                      = var.dry_run
   max_remediation_attempts     = var.max_remediation_attempts
   remediation_cooldown_minutes = var.remediation_cooldown_minutes
+  kms_key_arn                  = var.kms_key_arn
   common_tags                  = var.common_tags
 }
 
@@ -92,6 +93,7 @@ module "lambda_function" {
   max_remediation_attempts     = var.max_remediation_attempts
   remediation_cooldown_minutes = var.remediation_cooldown_minutes
   nginx_log_group_arns         = var.nginx_log_group_arns
+  kms_key_arn                  = var.kms_key_arn
   common_tags                  = var.common_tags
 }
 
