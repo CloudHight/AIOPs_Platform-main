@@ -177,7 +177,7 @@ Security guide: [docs/security.md](docs/security.md).
 Run unit tests:
 
 ```bash
-PYTHONPATH=lambda/src python3 -m unittest discover -s lambda/tests
+PYTHONPATH=lambda/src python3.12 -m unittest discover -s lambda/tests
 ```
 
 Run smoke tests after apply:

@@ -31,6 +31,8 @@ dnf install -y \
   jq \
   python3 \
   python3-pip \
+  python3.12 \
+  python3.12-pip \
   unzip \
   zip \
   tar \
@@ -179,13 +181,15 @@ rm -rf /var/lib/jenkins/.venvs/aiops
 rm -rf /var/lib/jenkins/.venvs/iac
 rm -rf /opt/aiops-venv
 
-python3 -m venv /var/lib/jenkins/.venvs/aiops
+python3.12 -m venv /var/lib/jenkins/.venvs/aiops
 
 /var/lib/jenkins/.venvs/aiops/bin/python -m pip install --upgrade pip setuptools wheel
 
 /var/lib/jenkins/.venvs/aiops/bin/python -m pip install --no-cache-dir \
-  "boto3<2" \
-  "botocore<2" \
+  "boto3>=1.42.97,<2" \
+  "botocore>=1.42.97,<2" \
+  "urllib3>=2.7.0,<3" \
+  "requests>=2.33.0,<3" \
   "sagemaker>=2.200,<3" \
   "pandas<2.4" \
   "numpy<2.1" \
@@ -196,7 +200,7 @@ python3 -m venv /var/lib/jenkins/.venvs/aiops
   bandit \
   pip-audit
 
-python3 -m venv /var/lib/jenkins/.venvs/iac
+python3.12 -m venv /var/lib/jenkins/.venvs/iac
 
 /var/lib/jenkins/.venvs/iac/bin/python -m pip install --upgrade pip setuptools wheel
 
@@ -211,6 +215,7 @@ ln -sf /var/lib/jenkins/.venvs/aiops/bin/mypy /usr/local/bin/mypy
 ln -sf /var/lib/jenkins/.venvs/aiops/bin/bandit /usr/local/bin/bandit
 ln -sf /var/lib/jenkins/.venvs/aiops/bin/pip-audit /usr/local/bin/pip-audit
 ln -sf /var/lib/jenkins/.venvs/iac/bin/checkov /usr/local/bin/checkov
+ln -sfn /var/lib/jenkins/.venvs/aiops /opt/aiops-venv
 
 chown -R jenkins:jenkins /var/lib/jenkins/.venvs
 

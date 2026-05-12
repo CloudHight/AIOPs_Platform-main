@@ -5,12 +5,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/dist/lambda/build"
 PACKAGE_DIR="${BUILD_DIR}/package"
 ZIP_PATH="${ROOT_DIR}/dist/lambda/aiops-lambda.zip"
+PYTHON_BIN="${AIOPS_PYTHON:-python3.12}"
 
 rm -rf "${BUILD_DIR}" "${ZIP_PATH}" "${ZIP_PATH}.sha256" "${ZIP_PATH}.base64sha256"
 mkdir -p "${PACKAGE_DIR}"
 
 if [[ -s "${ROOT_DIR}/lambda/requirements.txt" ]]; then
-  python3 -m pip install \
+  "${PYTHON_BIN}" -m pip install \
     --requirement "${ROOT_DIR}/lambda/requirements.txt" \
     --target "${PACKAGE_DIR}" \
     --upgrade

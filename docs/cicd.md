@@ -46,7 +46,7 @@ Do not store AWS access keys, SageMaker execution role ARNs, Jira tokens, Docker
 
 The agent needs:
 
-- Python 3.9 or newer
+- Python 3.12 or newer
 - Terraform
 - AWS CLI v2
 - `jq`
@@ -56,7 +56,7 @@ The agent needs:
 - `checkov`
 - `gitleaks` preferred; standard `grep` fallback is supported
 
-The pipeline installs Python quality/model tools into `.venv` and Checkov into a separate `.iac-venv` so IaC scanner dependencies cannot downgrade SageMaker/runtime dependencies.
+The pipeline installs Python quality/model tools into a fresh `.venv` and Checkov into a separate fresh `.iac-venv` on every run so stale packages and IaC scanner dependencies cannot downgrade SageMaker/runtime dependencies. Python 3.12+ is required because the audited AWS SDK dependency graph resolves to patched `urllib3` 2.x only on supported modern runtimes.
 
 The `infra/jenkins` bootstrap installs the baseline tools on the controller. Production teams may still prefer separate ephemeral agents for heavy model training and Terraform execution.
 

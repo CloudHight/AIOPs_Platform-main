@@ -46,6 +46,7 @@ pipeline {
     AWS_REGION = 'us-east-1'
     TF_IN_AUTOMATION = 'true'
     PYTHONUNBUFFERED = '1'
+    AIOPS_PYTHON = 'python3.12'
     PIP_DISABLE_PIP_VERSION_CHECK = '1'
     DIST_DIR = 'dist'
     REPORTS_DIR = 'reports'
@@ -82,7 +83,8 @@ pipeline {
       steps {
         sh '''
           set -eu
-          python3 --version
+          command -v "${AIOPS_PYTHON}"
+          "${AIOPS_PYTHON}" --version
           terraform version
           aws --version
           java -version
@@ -112,8 +114,14 @@ pipeline {
       steps {
         sh '''
           set -eu
-          python3 -m venv .venv
+          rm -rf .venv .iac-venv
+          "${AIOPS_PYTHON}" -m venv .venv
           . .venv/bin/activate
+          python - <<'PY'
+import sys
+if sys.version_info < (3, 12):
+    raise SystemExit(f"Python 3.12+ is required for audited dependency resolution; got {sys.version}")
+PY
           python -m pip install --upgrade pip
           if [ -s lambda/requirements.txt ]; then
             pip install -r lambda/requirements.txt
@@ -124,7 +132,7 @@ pipeline {
             pip install -r models/requirements.txt
             pip install pytest ruff mypy pip-audit bandit
           fi
-          python3 -m venv .iac-venv
+          "${AIOPS_PYTHON}" -m venv .iac-venv
           . .iac-venv/bin/activate
           python -m pip install --upgrade pip
           pip install checkov
@@ -141,7 +149,7 @@ pipeline {
           ruff check lambda/src scripts
           mypy --config-file lambda/pyproject.toml lambda/src
           bandit -q -r lambda/src -f json -o reports/bandit.json
-          pip-audit -r lambda/requirements.txt -r models/requirements.txt -f json -o reports/pip-audit.json
+          pip-audit --cache-dir reports/.pip-audit-cache -r lambda/requirements.txt -r models/requirements.txt -f json -o reports/pip-audit.json
           TEST_PATHS=""
           for path in lambda/tests models/tests; do
             if [ -d "${path}" ]; then
