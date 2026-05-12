@@ -2,7 +2,12 @@
 name = "aiops-lambda"
 version = "0.1.0"
 description = "AIOps Lambda control plane package"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+strict_optional = true
 
 dependencies = [
   "boto3>=1.34",

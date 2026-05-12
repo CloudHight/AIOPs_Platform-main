@@ -35,12 +35,18 @@ def extract_score(response: dict[str, Any], fallback: float = 0.0) -> float:
     if isinstance(scores, list) and scores:
         first = scores[0]
         if isinstance(first, dict):
-            return float(first.get("score", first.get("anomaly_score", fallback)))
+            score = first.get("score")
+            if score is None:
+                score = first.get("anomaly_score", fallback)
+            return float(score)
         return float(first)
     predictions = response.get("predictions")
     if isinstance(predictions, list) and predictions:
         first = predictions[0]
         if isinstance(first, dict):
-            return float(first.get("score", first.get("probability", fallback)))
+            score = first.get("score")
+            if score is None:
+                score = first.get("probability", fallback)
+            return float(score)
         return float(first)
     return fallback

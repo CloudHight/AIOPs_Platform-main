@@ -7,11 +7,11 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class AnomalyStatus(StrEnum):
+class AnomalyStatus(str, Enum):
     DETECTED = "DETECTED"
     RECORDED = "RECORDED"
     ALERTED = "ALERTED"

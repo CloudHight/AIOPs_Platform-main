@@ -17,6 +17,7 @@ def parse_args():
     parser.add_argument("--bucket", required=True)
     parser.add_argument("--prefix", default="bert-update/data")
     parser.add_argument("--train-script", default="train.py")
+    parser.add_argument("--role", default=os.environ.get("SAGEMAKER_EXECUTION_ROLE_ARN"))
     parser.add_argument("--wait", action="store_true")
     parser.add_argument("--poll-seconds", type=int, default=60)
     return parser.parse_args()
@@ -26,7 +27,7 @@ def launch_sagemaker_tuning(train_uri: str, val_uri: str, test_uri: str, train_s
     if not os.path.isfile(train_script):
         raise FileNotFoundError(f"Training script not found: {train_script}")
 
-    role = role or get_execution_role()
+    role = role or os.environ.get("SAGEMAKER_EXECUTION_ROLE_ARN") or get_execution_role()
 
     estimator = HuggingFace(
         entry_point=train_script,
@@ -115,6 +116,7 @@ if __name__ == "__main__":
         val_uri=f"s3://{args.bucket}/{args.prefix}/validation/",
         test_uri=f"s3://{args.bucket}/{args.prefix}/test/",
         train_script=args.train_script,
+        role=args.role,
     )
     print(f"[INFO] Tuning job name: {tuner.latest_tuning_job.name}")
     if args.wait:

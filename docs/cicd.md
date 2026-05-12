@@ -31,26 +31,29 @@ Create these Jenkins credentials as secret text values:
 - `aws-deploy-role-arn-prod`
 - `model-artifact-bucket`
 - `lambda-artifact-bucket`
+- `sagemaker-execution-role-arn`
+- `cpu-model-image-uri`
+- `log-model-image-uri`
 
 Optional credentials for notification integrations can be added later:
 
 - `slack-webhook`
 - environment-specific Jira test secret ARN if smoke tests need a dedicated test project
 
-Do not store AWS access keys, Jira tokens, Docker credentials, `.tfvars` secrets, or state credentials in this repository.
+Do not store AWS access keys, SageMaker execution role ARNs, Jira tokens, Docker credentials, `.tfvars` secrets, or state credentials in this repository.
 
 ## Required Jenkins Agent Tools
 
 The agent needs:
 
-- Python 3.12
+- Python 3.9 or newer
 - Terraform
 - AWS CLI v2
 - `jq`
 - `zip`
 - Java, for Jenkins and scanner tooling
 - `tflint`
-- `checkov` or `tfsec`
+- `checkov`
 
 The pipeline installs Python-only quality tools into `.venv`.
 

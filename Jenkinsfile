@@ -88,11 +88,23 @@ pipeline {
           java -version
           jq --version
           zip -v | head -n 2
-          tflint --version || true
-          checkov --version || true
-          tfsec --version || true
+          tflint --version
           git --version
         '''
+      }
+    }
+
+    stage('Secret Scan') {
+      steps {
+        sh '''
+          set -eu
+          scripts/secret_scan.sh
+        '''
+      }
+      post {
+        always {
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/gitleaks.json,reports/secret-scan.txt'
+        }
       }
     }
 
@@ -106,7 +118,13 @@ pipeline {
           if [ -s lambda/requirements.txt ]; then
             pip install -r lambda/requirements.txt
           fi
-          pip install pytest ruff mypy pip-audit bandit
+          if [ -s models/requirements-dev.txt ]; then
+            pip install -r models/requirements-dev.txt
+          else
+            pip install -r models/requirements.txt
+            pip install pytest ruff mypy pip-audit bandit
+          fi
+          pip install checkov
         '''
       }
     }
@@ -117,11 +135,22 @@ pipeline {
           set -eu
           . .venv/bin/activate
           python -m compileall -q lambda/src scripts
-          ruff check lambda/src scripts || true
-          mypy lambda/src || true
-          bandit -q -r lambda/src -f json -o reports/bandit.json || true
-          pip-audit -f json -o reports/pip-audit.json || true
-          pytest lambda/tests models/tests --junitxml=reports/pytest.xml || true
+          ruff check lambda/src scripts
+          mypy --config-file lambda/pyproject.toml lambda/src
+          bandit -q -r lambda/src -f json -o reports/bandit.json
+          pip-audit -r lambda/requirements.txt -r models/requirements.txt -f json -o reports/pip-audit.json
+          TEST_PATHS=""
+          for path in lambda/tests models/tests; do
+            if [ -d "${path}" ]; then
+              TEST_PATHS="${TEST_PATHS} ${path}"
+            fi
+          done
+          if [ -n "${TEST_PATHS}" ]; then
+            pytest ${TEST_PATHS} --junitxml=reports/pytest.xml
+          else
+            echo "No test directories found; failing because senior delivery requires tests." >&2
+            exit 1
+          fi
         '''
       }
       post {
@@ -139,21 +168,34 @@ pipeline {
       steps {
         withCredentials([
           string(credentialsId: 'model-artifact-bucket', variable: 'MODEL_ARTIFACT_BUCKET'),
+          string(credentialsId: 'sagemaker-execution-role-arn', variable: 'SAGEMAKER_EXECUTION_ROLE_ARN'),
+          string(credentialsId: 'cpu-model-image-uri', variable: 'CPU_MODEL_IMAGE_URI'),
+          string(credentialsId: 'log-model-image-uri', variable: 'LOG_MODEL_IMAGE_URI'),
           string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')
         ]) {
           sh '''
             set -eu
+            set +x
             CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-models-${BUILD_NUMBER}")"
             export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
             export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
             export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
             export AWS_DEFAULT_REGION="${AWS_REGION}"
             export MODEL_VERSION="${MODEL_VERSION}"
+            export CPU_MODEL_IMAGE_URI
+            export LOG_MODEL_IMAGE_URI
+            export LOG_TRAIN_WAIT=true
+            if [ -z "${SAGEMAKER_EXECUTION_ROLE_ARN:-}" ]; then
+              echo "SAGEMAKER_EXECUTION_ROLE_ARN is required when TRAIN_MODELS=true."
+              exit 1
+            fi
+            export SAGEMAKER_EXECUTION_ROLE_ARN
 
             . .venv/bin/activate
             scripts/train_cpu_model.sh
             scripts/train_log_model.sh
             scripts/package_model_artifacts.sh
+            scripts/validate_model_handoff.sh
             scripts/upload_model_artifacts.sh
             scripts/write_model_tfvars.sh "${TF_ROOT}/model-artifacts.auto.tfvars.json"
           '''
@@ -174,6 +216,7 @@ pipeline {
         ]) {
           sh '''
             set -eu
+            set +x
             CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-lambda-${BUILD_NUMBER}")"
             export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
             export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
@@ -204,6 +247,7 @@ EOF
           dir("${env.TF_ROOT}") {
             sh '''
               set -eu
+              set +x
               CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-tf-init-${BUILD_NUMBER}")"
               export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
               export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
@@ -223,16 +267,15 @@ EOF
             set -eu
             terraform fmt -check -recursive ../..
             terraform validate
-            tflint --init || true
-            tflint --recursive || true
-            checkov -d ../.. -o cli -o json --output-file-path ../../../reports/checkov || true
-            tfsec ../.. --format json --out ../../../reports/tfsec.json || true
+            tflint --init
+            tflint --recursive
+            ../../../.venv/bin/checkov -d ../.. -o cli -o json --output-file-path ../../../reports/checkov
           '''
         }
       }
       post {
         always {
-          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/checkov*,reports/tfsec.json'
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/checkov*'
         }
       }
     }
@@ -243,6 +286,7 @@ EOF
           dir("${env.TF_ROOT}") {
             sh '''
               set -eu
+              set +x
               CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-tf-plan-${BUILD_NUMBER}")"
               export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
               export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
@@ -279,6 +323,7 @@ EOF
           dir("${env.TF_ROOT}") {
             sh '''
               set -eu
+              set +x
               CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-tf-apply-${BUILD_NUMBER}")"
               export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
               export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
@@ -299,6 +344,7 @@ EOF
         withCredentials([string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')]) {
           sh '''
             set -eu
+            set +x
             CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-smoke-${BUILD_NUMBER}")"
             export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
             export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"

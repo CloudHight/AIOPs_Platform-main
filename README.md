@@ -66,13 +66,14 @@ Legacy folders remain for source model/training context. New delivery paths live
 
 Local or Jenkins agent tools:
 
-- Python 3.12
+- Python 3.9 or newer
 - Terraform 1.6+
 - AWS CLI v2
 - `jq`
 - `zip`
 - Java for Jenkins/scanners
-- Optional: `tflint`, `checkov`, `tfsec`
+- `tflint`
+- `checkov`
 
 AWS prerequisites:
 

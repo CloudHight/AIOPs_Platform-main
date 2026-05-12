@@ -1,6 +1,7 @@
 import pandas as pd
 from sagemaker import RandomCutForest, get_execution_role
 import json
+import os
 
 def train_model(input_file="cpu_time_series_realistic.csv",
                 model_info_file="model_info.json"):
@@ -31,8 +32,10 @@ def train_model(input_file="cpu_time_series_realistic.csv",
     print(f"  - feature_dim: 1 (single CPU metric)")
     print(f"\nStarting training...\n")
     
+    execution_role = os.environ.get("SAGEMAKER_EXECUTION_ROLE_ARN") or get_execution_role()
+
     rcf = RandomCutForest(
-        role=get_execution_role(),
+        role=execution_role,
         instance_count=1,
         instance_type='ml.m5.large',
         num_trees=100,  # More trees for better detection of two distinct clusters

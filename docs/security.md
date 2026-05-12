@@ -90,13 +90,13 @@ Jenkins runs:
 - unit tests
 - `bandit`
 - `pip-audit`
+- secret scanning with `gitleaks` when installed, or the repo fallback scanner
 - `terraform fmt`
 - `terraform validate`
-- optional `tflint`
-- optional `checkov`
-- optional `tfsec`
+- `tflint`
+- `checkov`
 
-Scanner failures are currently archived for review in the Jenkinsfile where tools may not be installed on every agent. For stricter environments, remove `|| true` from scanner commands.
+These gates are expected to fail the pipeline unless an exception is explicitly documented and reviewed.
 
 ## Credential Rotation
 

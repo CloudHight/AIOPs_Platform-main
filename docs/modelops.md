@@ -42,10 +42,12 @@ scripts/write_model_tfvars.sh infra/envs/dev/model-artifacts.auto.tfvars.json
 
 ## Jenkins Readiness Note
 
-The legacy RCF and BERT launchers were originally written with SageMaker Notebook/Studio assumptions. Before relying on unattended Jenkins model training, refactor them to accept:
+The RCF and BERT launchers now support Jenkins-driven training through the `SAGEMAKER_EXECUTION_ROLE_ARN` environment variable. Store that role ARN in the Jenkins `sagemaker-execution-role-arn` secret text credential.
+
+Model launchers should continue to accept explicit runtime inputs rather than Notebook/Studio role discovery:
 
 ```text
---sagemaker-execution-role-arn
+SAGEMAKER_EXECUTION_ROLE_ARN
 --bucket
 --output-prefix
 --region

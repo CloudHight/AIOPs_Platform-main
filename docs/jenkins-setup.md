@@ -89,6 +89,9 @@ aws-deploy-role-arn-stage
 aws-deploy-role-arn-prod
 model-artifact-bucket
 lambda-artifact-bucket
+sagemaker-execution-role-arn
+cpu-model-image-uri
+log-model-image-uri
 ```
 
 The Jenkins stack creates deploy roles for `dev`, `stage`, and `prod` by default. Read the ARNs with:
