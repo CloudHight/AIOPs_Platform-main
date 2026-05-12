@@ -1,0 +1,33 @@
+aws_region  = "us-east-1"
+environment = "tools"
+project     = "AIOps"
+name_prefix = "aiops"
+
+instance_type                = "t3.medium"
+vpc_id                       = null
+subnet_id                    = null
+associate_public_ip_address  = false
+allowed_jenkins_cidrs        = []
+root_volume_size_gb          = 40
+jenkins_home_volume_size_gb  = 100
+
+# Create deploy roles for the application environments and allow Jenkins to assume them.
+create_deploy_roles           = true
+deploy_role_environments      = ["dev", "stage", "prod"]
+deploy_role_max_session_duration = 3600
+
+# Optional extra managed policies to attach to each created deploy role.
+deploy_role_extra_policy_arns = []
+
+# Optional pre-existing deploy roles Jenkins may also assume.
+allowed_deploy_role_arns = [
+  # "arn:aws:iam::<account-id>:role/aiops-jenkins-deploy-dev",
+  # "arn:aws:iam::<account-id>:role/aiops-jenkins-deploy-stage",
+  # "arn:aws:iam::<account-id>:role/aiops-jenkins-deploy-prod",
+]
+
+# Artifact buckets used by the Jenkinsfile for model and Lambda packages.
+artifact_bucket_arns = [
+  # "arn:aws:s3:::my-aiops-model-artifacts",
+  # "arn:aws:s3:::my-aiops-lambda-artifacts",
+]

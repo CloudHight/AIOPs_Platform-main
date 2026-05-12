@@ -1,0 +1,4 @@
+aws_region        = "us-east-1"
+state_bucket_name = "motiva-aiops-terraform-state"
+lock_table_name   = "motiva-aiops-terraform-locks"
+

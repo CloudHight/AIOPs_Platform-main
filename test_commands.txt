@@ -1,0 +1,10 @@
+# Test CPU load by running stress-ng for 60 seconds at 75% load
+# simulate CPU load at 75% for 600 seconds
+
+stress-ng --cpu 4 --cpu-load 75 --timeout 600s
+
+
+# Test Nginx logs by generating traffic to the server
+# generate some traffic to create logs
+
+for i in {1..300}; do curl -s http://localhost/ > /dev/null; sleep 0.1; done

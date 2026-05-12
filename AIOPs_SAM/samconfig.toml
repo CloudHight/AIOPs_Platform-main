@@ -1,0 +1,30 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "anomaly-detection-stack"
+resolve_s3 = true
+s3_prefix = "anomaly-detection-stack"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+image_repositories = []
+disable_rollback = true
+parameter_overrides = "Environment=\"dev\" AnomalyScoreThresholdCPU=\"1.4059\" AnomalyScoreThresholdLog=\"0.418667197227478\" GracePeriodMinutes=\"1\" NotificationEmail=\"<your-emai>\" CPUAnomalyModelEndpoint=\"cpu-anomaly-detector-prod\" LogAnomalyModelEndpoint=\"nginx-anomaly-detector-prod\" JiraProjectKey=\"CA\" MonitoringFrequency=\"rate(5 minutes)\" InstanceTagKey=\"AnomalyMonitoring\" InstanceTagValue=\"enabled\" EnableManagedGrafana=\"true\" GrafanaWorkspaceName=\"anomaly-ops\""
+[default.build]
+[default.build.parameters]
+cached = true
+parallel = true
+[default.sync]
+[default.sync.parameters]
+watch = true
+[default.validate.parameters]
+lint = true
+[default.package.parameters]
+resolve_s3 = true
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[default.local_start_lambda.parameters]
+warm_containers = "EAGER"
