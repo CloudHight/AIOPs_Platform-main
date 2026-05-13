@@ -14,4 +14,5 @@ paths = [
   '''(^|/)jenkins-pipeline-logs($| )''',
   '''(^|/)logs$''',
   '''\.tfstate(\..*)?$''',
+  '''(^|/)(tfplan|tfplan\.txt|tfplan\.json|destroy\.tfplan|destroy\.tfplan\.txt)$''',
 ]

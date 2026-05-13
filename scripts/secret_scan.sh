@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPORT_DIR="${ROOT_DIR}/reports"
 mkdir -p "${REPORT_DIR}"
+rm -f "${REPORT_DIR}/gitleaks.json" "${REPORT_DIR}/secret-scan.txt"
 
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks detect \

@@ -58,6 +58,10 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
+        sh '''
+          set -eu
+          scripts/cleanup_ephemeral.sh
+        '''
       }
     }
 
