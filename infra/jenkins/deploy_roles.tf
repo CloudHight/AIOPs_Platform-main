@@ -132,6 +132,7 @@ resource "aws_iam_role_policy" "jenkins_deploy" {
           "kms:CreateKey",
           "kms:Decrypt",
           "kms:DescribeKey",
+          "kms:DeleteAlias",
           "kms:EnableKeyRotation",
           "kms:Encrypt",
           "kms:GenerateDataKey",
