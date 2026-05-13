@@ -151,6 +151,23 @@ variable "lambda_local_package_path" {
   default     = null
 }
 
+variable "jira_secret_name" {
+  description = "Optional explicit Jira credentials secret name."
+  type        = string
+  default     = null
+}
+
+variable "jira_secret_recovery_window_in_days" {
+  description = "Secrets Manager recovery window for the Jira credentials secret. Use 0 only for ephemeral dev."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.jira_secret_recovery_window_in_days == 0 || (var.jira_secret_recovery_window_in_days >= 7 && var.jira_secret_recovery_window_in_days <= 30)
+    error_message = "jira_secret_recovery_window_in_days must be 0 for immediate deletion or between 7 and 30 days."
+  }
+}
+
 variable "kms_key_arn" {
   description = "Optional KMS key ARN for encrypted services."
   type        = string

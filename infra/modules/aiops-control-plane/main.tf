@@ -34,10 +34,12 @@ module "sns" {
 module "secrets_manager" {
   source = "../secrets-manager"
 
-  environment = var.environment
-  name_prefix = var.name_prefix
-  kms_key_arn = var.kms_key_arn
-  common_tags = var.common_tags
+  environment             = var.environment
+  name_prefix             = var.name_prefix
+  jira_secret_name        = var.jira_secret_name
+  recovery_window_in_days = var.jira_secret_recovery_window_in_days
+  kms_key_arn             = var.kms_key_arn
+  common_tags             = var.common_tags
 }
 
 module "ssm_parameters" {
