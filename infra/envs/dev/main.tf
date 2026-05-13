@@ -6,7 +6,6 @@ data "aws_region" "current" {}
 
 locals {
   aiops_kms_alias_name = "alias/aiops-${var.environment}"
-  aiops_kms_alias_arn  = "arn:${var.aws_partition}:kms:${var.aws_region}:${var.aws_account_id}:${local.aiops_kms_alias_name}"
 }
 
 resource "aws_kms_key" "aiops" {
@@ -55,6 +54,32 @@ resource "aws_kms_key" "aiops" {
             "aws:SourceAccount" = data.aws_caller_identity.current.account_id
           }
         }
+      },
+      {
+        Sid    = "AllowAwsServiceGrantsInAccount"
+        Effect = "Allow"
+        Principal = {
+          Service = [
+            "logs.${data.aws_region.current.name}.amazonaws.com",
+            "sns.amazonaws.com",
+            "sqs.amazonaws.com",
+            "dynamodb.amazonaws.com",
+            "ssm.amazonaws.com",
+            "lambda.amazonaws.com",
+            "sagemaker.amazonaws.com",
+            "secretsmanager.amazonaws.com"
+          ]
+        }
+        Action   = "kms:CreateGrant"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          Bool = {
+            "kms:GrantIsForAWSResource" = "true"
+          }
+        }
       }
     ]
   })
@@ -77,7 +102,7 @@ module "ec2_workload" {
   app_image                   = var.workload_app_image
   associate_public_ip_address = var.workload_associate_public_ip
   log_retention_days          = var.workload_log_retention_days
-  cloudwatch_log_kms_key_id   = local.aiops_kms_alias_arn
+  cloudwatch_log_kms_key_id   = aws_kms_key.aiops.arn
   common_tags                 = local.common_tags
 
   depends_on = [aws_kms_alias.aiops]
@@ -93,7 +118,7 @@ module "cpu_sagemaker_endpoint" {
   model_artifact_s3_uri = var.cpu_model_artifact_s3_uri
   model_image_uri       = var.cpu_model_image_uri
   instance_type         = var.cpu_endpoint_instance_type
-  kms_key_arn           = local.aiops_kms_alias_arn
+  kms_key_arn           = aws_kms_key.aiops.arn
   alarm_actions         = []
   common_tags           = local.common_tags
 
@@ -110,7 +135,7 @@ module "log_sagemaker_endpoint" {
   model_artifact_s3_uri = var.log_model_artifact_s3_uri
   model_image_uri       = var.log_model_image_uri
   instance_type         = var.log_endpoint_instance_type
-  kms_key_arn           = local.aiops_kms_alias_arn
+  kms_key_arn           = aws_kms_key.aiops.arn
   alarm_actions         = []
   common_tags           = local.common_tags
 
@@ -145,7 +170,7 @@ module "aiops_control_plane" {
   lambda_artifact_version      = var.lambda_artifact_version
   lambda_source_code_hash      = var.lambda_source_code_hash
   lambda_local_package_path    = var.lambda_local_package_path
-  kms_key_arn                  = local.aiops_kms_alias_arn
+  kms_key_arn                  = aws_kms_key.aiops.arn
   nginx_log_group_arns = [
     module.ec2_workload.nginx_access_log_group_arn,
     module.ec2_workload.nginx_error_log_group_arn
