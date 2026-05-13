@@ -67,7 +67,7 @@ def launch_sagemaker_tuning(train_uri: str, val_uri: str, test_uri: str, train_s
             "max_seq_length": CategoricalParameter([128, 192, 256]),
             "model_name": CategoricalParameter(["distilbert-base-uncased", "bert-base-uncased"]),
         },
-        max_jobs=8,
+        max_jobs=3,
         max_parallel_jobs=1,
     )
 
