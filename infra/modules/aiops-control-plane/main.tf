@@ -1,9 +1,12 @@
+data "aws_partition" "current" {}
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  event_bus_name = "${var.name_prefix}-anomaly-events-${var.environment}"
-  event_bus_arn  = "arn:aws:events:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:event-bus/${local.event_bus_name}"
+  event_bus_name        = "${var.name_prefix}-anomaly-events-${var.environment}"
+  event_bus_arn         = "arn:${data.aws_partition.current.partition}:events:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:event-bus/${local.event_bus_name}"
+  remediation_queue_arn = "arn:${data.aws_partition.current.partition}:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${var.name_prefix}-anomaly-processing-${var.environment}"
+  remediation_dlq_arn   = "arn:${data.aws_partition.current.partition}:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${var.name_prefix}-anomaly-dlq-${var.environment}"
 }
 
 module "dynamodb" {
@@ -73,9 +76,9 @@ module "lambda_function" {
   dynamodb_table_arn           = module.dynamodb.table_arn
   sns_topic_arn                = module.sns.topic_arn
   processing_queue_url         = module.sqs.queue_url
-  processing_queue_arn         = module.sqs.queue_arn
+  processing_queue_arn         = local.remediation_queue_arn
   dlq_url                      = module.sqs.dlq_url
-  dlq_arn                      = module.sqs.dlq_arn
+  dlq_arn                      = local.remediation_dlq_arn
   event_bus_name               = local.event_bus_name
   event_bus_arn                = local.event_bus_arn
   cpu_model_endpoint           = var.cpu_model_endpoint
