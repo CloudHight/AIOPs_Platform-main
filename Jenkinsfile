@@ -38,6 +38,8 @@ pipeline {
   parameters {
     choice(name: 'TARGET_ENV', choices: ['auto', 'dev', 'stage', 'prod'], description: 'Deployment environment. auto maps branch to environment.')
     booleanParam(name: 'APPLY', defaultValue: false, description: 'Apply the saved Terraform plan.')
+    booleanParam(name: 'DESTROY', defaultValue: false, description: 'Destroy the selected Terraform environment.')
+    string(name: 'DESTROY_CONFIRM', defaultValue: '', description: 'Type destroy-<env> to confirm destroy.')
     booleanParam(name: 'TRAIN_MODELS', defaultValue: true, description: 'Train, package, and publish model artifacts.')
     booleanParam(name: 'RUN_SMOKE_TESTS', defaultValue: true, description: 'Run smoke tests after apply.')
   }
@@ -64,6 +66,12 @@ pipeline {
         script {
           env.TARGET_ENV_RESOLVED = resolveTargetEnvironment()
           assertBranchPolicy(env.TARGET_ENV_RESOLVED)
+          if (params.APPLY && params.DESTROY) {
+            error('APPLY and DESTROY are mutually exclusive.')
+          }
+          if (params.DESTROY && params.DESTROY_CONFIRM != "destroy-${env.TARGET_ENV_RESOLVED}") {
+            error("DESTROY_CONFIRM must exactly equal destroy-${env.TARGET_ENV_RESOLVED}.")
+          }
           env.TF_ROOT = "infra/envs/${env.TARGET_ENV_RESOLVED}"
           env.MODEL_VERSION = "${env.BRANCH_NAME ?: 'local'}-${env.BUILD_NUMBER}".replaceAll('[^A-Za-z0-9_.-]', '-')
           env.AWS_DEPLOY_ROLE_CREDENTIAL_ID = "aws-deploy-role-arn-${env.TARGET_ENV_RESOLVED}"
@@ -174,7 +182,7 @@ PY
 
     stage('Model Build and Validation') {
       when {
-        expression { return params.TRAIN_MODELS }
+        expression { return params.TRAIN_MODELS && !params.DESTROY }
       }
       steps {
         withCredentials([
@@ -220,6 +228,9 @@ PY
     }
 
     stage('Package Lambda') {
+      when {
+        expression { return !params.DESTROY }
+      }
       steps {
         withCredentials([
           string(credentialsId: 'lambda-artifact-bucket', variable: 'LAMBDA_ARTIFACT_BUCKET'),
@@ -257,6 +268,34 @@ PY
       post {
         always {
           archiveArtifacts allowEmptyArchive: true, fingerprint: true, artifacts: 'dist/lambda/**/*'
+        }
+      }
+    }
+
+    stage('Prepare Destroy Variables') {
+      when {
+        expression { return params.DESTROY }
+      }
+      steps {
+        withCredentials([string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')]) {
+          sh '''
+            set -eu
+            set +x
+            CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-destroy-vars-${BUILD_NUMBER}")"
+            export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
+            export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
+            export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
+            export AWS_DEFAULT_REGION="${AWS_REGION}"
+            AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+
+            jq -n \
+              --arg account_id "${AWS_ACCOUNT_ID}" \
+              --arg region "${AWS_REGION}" \
+              '{
+                aws_account_id: $account_id,
+                aws_region: $region
+              }' > "${TF_ROOT}/jenkins.auto.tfvars.json"
+          '''
         }
       }
     }
@@ -321,9 +360,15 @@ PY
               export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
               export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
               export AWS_DEFAULT_REGION="${AWS_REGION}"
-              terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars.json
-              terraform show -no-color tfplan > tfplan.txt
-              terraform show -json tfplan > tfplan.json
+              if [ "${DESTROY}" = "true" ]; then
+                terraform plan -destroy -input=false -out=destroy.tfplan -var-file=jenkins.auto.tfvars.json
+                terraform show -no-color destroy.tfplan > destroy.tfplan.txt
+                terraform show -json destroy.tfplan > tfplan.json
+              else
+                terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars.json
+                terraform show -no-color tfplan > tfplan.txt
+                terraform show -json tfplan > tfplan.json
+              fi
               ../../../.iac-venv/bin/checkov -f tfplan.json \
                 --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_272,CKV2_AWS_57 \
                 -o cli -o json --output-file-path ../../../reports/checkov
@@ -333,23 +378,29 @@ PY
       }
       post {
         always {
-          archiveArtifacts allowEmptyArchive: false, fingerprint: true, artifacts: 'infra/envs/*/tfplan.txt,reports/checkov*'
+          archiveArtifacts allowEmptyArchive: false, fingerprint: true, artifacts: 'infra/envs/*/tfplan.txt,infra/envs/*/destroy.tfplan.txt,reports/checkov*'
         }
       }
     }
 
     stage('Approval') {
       when {
-        expression { return params.APPLY && env.TARGET_ENV_RESOLVED in ['stage', 'prod'] }
+        expression { return params.DESTROY || (params.APPLY && env.TARGET_ENV_RESOLVED in ['stage', 'prod']) }
       }
       steps {
-        input message: "Apply saved Terraform plan to ${env.TARGET_ENV_RESOLVED}?", ok: 'Apply'
+        script {
+          if (params.DESTROY) {
+            input message: "Destroy Terraform environment ${env.TARGET_ENV_RESOLVED}?", ok: 'Destroy'
+          } else {
+            input message: "Apply saved Terraform plan to ${env.TARGET_ENV_RESOLVED}?", ok: 'Apply'
+          }
+        }
       }
     }
 
     stage('Terraform Apply') {
       when {
-        expression { return params.APPLY }
+        expression { return params.APPLY || params.DESTROY }
       }
       steps {
         withCredentials([string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')]) {
@@ -362,7 +413,11 @@ PY
               export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
               export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
               export AWS_DEFAULT_REGION="${AWS_REGION}"
-              terraform apply -input=false tfplan
+              if [ "${DESTROY}" = "true" ]; then
+                terraform apply -input=false destroy.tfplan
+              else
+                terraform apply -input=false tfplan
+              fi
             '''
           }
         }
@@ -371,7 +426,7 @@ PY
 
     stage('Smoke Tests') {
       when {
-        expression { return params.APPLY && params.RUN_SMOKE_TESTS }
+        expression { return params.APPLY && !params.DESTROY && params.RUN_SMOKE_TESTS }
       }
       steps {
         withCredentials([string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')]) {
@@ -392,7 +447,7 @@ PY
 
   post {
     always {
-      archiveArtifacts allowEmptyArchive: true, fingerprint: true, artifacts: 'dist/**/*,reports/**/*,infra/envs/*/tfplan.txt'
+      archiveArtifacts allowEmptyArchive: true, fingerprint: true, artifacts: 'dist/**/*,reports/**/*,infra/envs/*/tfplan.txt,infra/envs/*/destroy.tfplan.txt'
       sh 'scripts/cleanup_ephemeral.sh || true'
     }
     failure {
