@@ -98,11 +98,17 @@ def resolve_tuning_artifact(tuning_job_name: str) -> tuple[str, str]:
 def load_metrics(evaluation_file: str | None) -> dict[str, Any]:
     if not evaluation_file:
         return {}
-    suffix = Path(evaluation_file).suffix.lower()
+    evaluation_path = Path(evaluation_file)
+    if not evaluation_path.is_file():
+        raise FileNotFoundError(
+            f"Evaluation file not found: {evaluation_path}. "
+            "The training stage must publish validation metrics before packaging."
+        )
+    suffix = evaluation_path.suffix.lower()
     if suffix == ".json":
-        return read_json(evaluation_file)
+        return read_json(str(evaluation_path))
     if suffix == ".csv":
-        return read_csv_first_row(evaluation_file)
+        return read_csv_first_row(str(evaluation_path))
     raise ValueError(f"Unsupported evaluation file format: {evaluation_file}")
 
 
