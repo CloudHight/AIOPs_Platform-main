@@ -90,6 +90,7 @@ resource "aws_iam_role_policy" "jenkins_deploy" {
         Action = [
           "dynamodb:CreateTable",
           "dynamodb:DeleteItem",
+          "dynamodb:DeleteTable",
           "dynamodb:DescribeContinuousBackups",
           "dynamodb:DescribeTable",
           "dynamodb:DescribeTimeToLive",

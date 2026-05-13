@@ -6,9 +6,8 @@ terraform {
     bucket         = "motiva-aiops-terraform-state"
     key            = "aiops/dev/terraform.tfstate"
     region         = "us-east-1"
-    # dynamodb_table = "motiva-aiops-terraform-locks"
+    dynamodb_table = "motiva-aiops-terraform-locks"
     encrypt        = true
-    use_lockfile   = true
   }
 
   required_providers {
