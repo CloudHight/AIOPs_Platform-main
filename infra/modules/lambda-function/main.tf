@@ -4,7 +4,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   function_name        = "${var.name_prefix}-anomaly-detection-${var.environment}"
-  queue_arn_prefix     = "arn:${data.aws_partition.current.partition}:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}"
+  queue_arn_prefix     = "arn:${var.aws_partition}:sqs:${var.aws_region}:${var.aws_account_id}"
   processing_queue_arn = "${local.queue_arn_prefix}:${var.name_prefix}-anomaly-processing-${var.environment}"
   dlq_target_arn       = "${local.queue_arn_prefix}:${var.name_prefix}-anomaly-dlq-${var.environment}"
   log_group_arns = length(var.nginx_log_group_arns) > 0 ? [

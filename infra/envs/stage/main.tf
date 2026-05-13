@@ -6,7 +6,7 @@ data "aws_region" "current" {}
 
 locals {
   aiops_kms_alias_name = "alias/aiops-${var.environment}"
-  aiops_kms_alias_arn  = "arn:${data.aws_partition.current.partition}:kms:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${local.aiops_kms_alias_name}"
+  aiops_kms_alias_arn  = "arn:${var.aws_partition}:kms:${var.aws_region}:${var.aws_account_id}:${local.aiops_kms_alias_name}"
 }
 
 resource "aws_kms_key" "aiops" {
@@ -122,6 +122,9 @@ module "aiops_control_plane" {
   source = "../../modules/aiops-control-plane"
 
   environment                  = var.environment
+  aws_partition                = var.aws_partition
+  aws_region                   = var.aws_region
+  aws_account_id               = var.aws_account_id
   name_prefix                  = "aiops"
   notification_email           = var.notification_email
   cpu_model_endpoint           = var.enable_sagemaker_endpoints ? module.cpu_sagemaker_endpoint[0].endpoint_name : var.cpu_model_endpoint

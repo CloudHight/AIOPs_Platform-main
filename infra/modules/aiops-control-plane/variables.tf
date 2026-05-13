@@ -3,6 +3,32 @@ variable "environment" {
   type        = string
 }
 
+variable "aws_partition" {
+  description = "AWS partition for deterministic ARN construction."
+  type        = string
+  default     = "aws"
+
+  validation {
+    condition     = contains(["aws", "aws-us-gov", "aws-cn"], var.aws_partition)
+    error_message = "aws_partition must be one of aws, aws-us-gov, or aws-cn."
+  }
+}
+
+variable "aws_region" {
+  description = "AWS region for deterministic ARN construction."
+  type        = string
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID for deterministic ARN construction."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "aws_account_id must be a 12-digit AWS account ID."
+  }
+}
+
 variable "name_prefix" {
   description = "Name prefix for AIOps control-plane resources."
   type        = string

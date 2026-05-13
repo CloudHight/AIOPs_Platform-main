@@ -4,6 +4,27 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "aws_partition" {
+  description = "AWS partition for ARN construction."
+  type        = string
+  default     = "aws"
+
+  validation {
+    condition     = contains(["aws", "aws-us-gov", "aws-cn"], var.aws_partition)
+    error_message = "aws_partition must be one of aws, aws-us-gov, or aws-cn."
+  }
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID targeted by this environment. Jenkins writes this from the assumed deploy role."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "aws_account_id must be a 12-digit AWS account ID."
+  }
+}
+
 variable "environment" {
   description = "Deployment environment name."
   type        = string

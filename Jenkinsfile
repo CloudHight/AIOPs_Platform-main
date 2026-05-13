@@ -233,14 +233,19 @@ PY
             export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
             export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
             export AWS_DEFAULT_REGION="${AWS_REGION}"
+            AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 
             scripts/package_lambda.sh
             aws s3 cp "dist/lambda/aiops-lambda.zip" "s3://${LAMBDA_ARTIFACT_BUCKET}/lambda/${TARGET_ENV_RESOLVED}/${BUILD_NUMBER}/aiops-lambda.zip"
             jq -n \
+              --arg account_id "${AWS_ACCOUNT_ID}" \
+              --arg region "${AWS_REGION}" \
               --arg bucket "${LAMBDA_ARTIFACT_BUCKET}" \
               --arg key "lambda/${TARGET_ENV_RESOLVED}/${BUILD_NUMBER}/aiops-lambda.zip" \
               --arg hash "$(cat dist/lambda/aiops-lambda.zip.base64sha256)" \
               '{
+                aws_account_id: $account_id,
+                aws_region: $region,
                 lambda_artifact_bucket: $bucket,
                 lambda_artifact_key: $key,
                 lambda_source_code_hash: $hash,
