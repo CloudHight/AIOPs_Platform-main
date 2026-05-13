@@ -92,12 +92,14 @@ resource "aws_iam_role_policy" "jenkins_deploy" {
           "dynamodb:DeleteItem",
           "dynamodb:DescribeContinuousBackups",
           "dynamodb:DescribeTable",
+          "dynamodb:DescribeTimeToLive",
           "dynamodb:GetItem",
           "dynamodb:ListTagsOfResource",
           "dynamodb:PutItem",
           "dynamodb:TagResource",
           "dynamodb:UpdateContinuousBackups",
-          "dynamodb:UpdateTable"
+          "dynamodb:UpdateTable",
+          "dynamodb:UpdateTimeToLive"
         ]
         Resource = "*"
       },
