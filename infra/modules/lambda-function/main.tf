@@ -1,12 +1,16 @@
+data "aws_partition" "current" {}
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  function_name = "${var.name_prefix}-anomaly-detection-${var.environment}"
+  function_name        = "${var.name_prefix}-anomaly-detection-${var.environment}"
+  queue_arn_prefix     = "arn:${data.aws_partition.current.partition}:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}"
+  processing_queue_arn = "${local.queue_arn_prefix}:${var.name_prefix}-anomaly-processing-${var.environment}"
+  dlq_target_arn       = "${local.queue_arn_prefix}:${var.name_prefix}-anomaly-dlq-${var.environment}"
   log_group_arns = length(var.nginx_log_group_arns) > 0 ? [
     for arn in var.nginx_log_group_arns : "${arn}:*"
     ] : [
-    "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:nginx/*:*"
+    "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:nginx/*:*"
   ]
 }
 
@@ -98,8 +102,8 @@ resource "aws_iam_role_policy" "lambda" {
           "sqs:ChangeMessageVisibility"
         ]
         Resource = [
-          var.processing_queue_arn,
-          var.dlq_arn
+          local.processing_queue_arn,
+          local.dlq_target_arn
         ]
       },
       {
@@ -225,7 +229,7 @@ resource "aws_lambda_function" "anomaly_detection" {
   }
 
   dead_letter_config {
-    target_arn = var.dlq_arn
+    target_arn = local.dlq_target_arn
   }
 
   environment {
@@ -269,7 +273,7 @@ resource "aws_lambda_function" "anomaly_detection" {
 }
 
 resource "aws_lambda_event_source_mapping" "sqs" {
-  event_source_arn                   = var.processing_queue_arn
+  event_source_arn                   = local.processing_queue_arn
   function_name                      = aws_lambda_function.anomaly_detection.arn
   batch_size                         = 10
   maximum_batching_window_in_seconds = 30
