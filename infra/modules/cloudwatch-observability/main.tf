@@ -3,7 +3,6 @@ data "aws_region" "current" {}
 locals {
   alarm_actions              = [var.sns_topic_arn]
   lambda_duration_threshold  = var.lambda_timeout_seconds * 1000 * 0.8
-  has_workload_instance      = var.workload_instance_id != null && var.workload_instance_id != ""
   has_nginx_access_log_group = var.nginx_access_log_group_name != null && var.nginx_access_log_group_name != ""
   has_nginx_error_log_group  = var.nginx_error_log_group_name != null && var.nginx_error_log_group_name != ""
   sagemaker_metrics = compact([
@@ -154,7 +153,7 @@ resource "aws_cloudwatch_metric_alarm" "dynamodb_throttles" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "ec2_status_check_failed" {
-  count = local.has_workload_instance ? 1 : 0
+  count = var.enable_workload_status_alarm ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-workload-status-check-${var.environment}"
   alarm_description   = "Monitored workload EC2 status check failed"
@@ -264,7 +263,7 @@ resource "aws_cloudwatch_dashboard" "aiops" {
         height = 6
         properties = {
           metrics = concat(
-            local.has_workload_instance ? [
+            var.enable_workload_status_alarm ? [
               ["AWS/EC2", "CPUUtilization", "InstanceId", var.workload_instance_id, { stat = "Average", label = "CPU Utilization" }],
               ["AWS/EC2", "StatusCheckFailed", "InstanceId", var.workload_instance_id, { stat = "Maximum", label = "Status Check Failed" }]
             ] : [],

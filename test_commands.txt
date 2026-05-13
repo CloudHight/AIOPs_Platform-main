@@ -15,3 +15,21 @@ cpu-model-image-uri
 
 log-model-image-uri
 763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:1.13-transformers4.26-gpu-py39-cu117-ubuntu20.04
+
+
+jenkins creadentials
+aws-deploy-role-arn-dev
+aws-deploy-role-arn-stage
+aws-deploy-role-arn-prod
+model-artifact-bucket
+lambda-artifact-bucket
+sagemaker-execution-role-arn
+
+
+jenkins plugins
+Pipeline
+Git
+Credentials Binding
+Timestamper
+AnsiColor
+JUnit

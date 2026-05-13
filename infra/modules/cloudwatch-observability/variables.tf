@@ -62,6 +62,12 @@ variable "workload_instance_id" {
   default     = null
 }
 
+variable "enable_workload_status_alarm" {
+  description = "Whether to create the EC2 status-check alarm for the monitored workload."
+  type        = bool
+  default     = true
+}
+
 variable "nginx_access_log_group_name" {
   description = "Nginx access log group name."
   type        = string
