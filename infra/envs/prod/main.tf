@@ -55,6 +55,32 @@ resource "aws_kms_key" "aiops" {
             "aws:SourceAccount" = data.aws_caller_identity.current.account_id
           }
         }
+      },
+      {
+        Sid    = "AllowAwsServiceGrantsInAccount"
+        Effect = "Allow"
+        Principal = {
+          Service = [
+            "logs.${data.aws_region.current.name}.amazonaws.com",
+            "sns.amazonaws.com",
+            "sqs.amazonaws.com",
+            "dynamodb.amazonaws.com",
+            "ssm.amazonaws.com",
+            "lambda.amazonaws.com",
+            "sagemaker.amazonaws.com",
+            "secretsmanager.amazonaws.com"
+          ]
+        }
+        Action   = "kms:CreateGrant"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          Bool = {
+            "kms:GrantIsForAWSResource" = "true"
+          }
+        }
       }
     ]
   })

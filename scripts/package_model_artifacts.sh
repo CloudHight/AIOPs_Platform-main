@@ -30,6 +30,7 @@ package_log() {
   local training_job_name="${LOG_TRAINING_JOB_NAME:-}"
   local artifact_s3_uri="${LOG_MODEL_ARTIFACT_S3_URI:-}"
   local local_model_artifact="${LOG_LOCAL_MODEL_ARTIFACT:-}"
+  local evaluation_file="${LOG_EVALUATION_FILE:-${ROOT_DIR}/dist/modelops/nginx-bert/evaluation_metrics.json}"
 
   if [[ -z "${tuning_job_name}" && -f "${ROOT_DIR}/dist/modelops/nginx-bert/tuning_job_name.txt" ]]; then
     tuning_job_name="$(tr -d '[:space:]' < "${ROOT_DIR}/dist/modelops/nginx-bert/tuning_job_name.txt")"
@@ -43,6 +44,11 @@ package_log() {
     echo "[ERROR] Run scripts/train_log_model.sh successfully, or set LOG_TUNING_JOB_NAME, LOG_TRAINING_JOB_NAME, LOG_MODEL_ARTIFACT_S3_URI, or LOG_LOCAL_MODEL_ARTIFACT." >&2
     exit 1
   fi
+  if [[ ! -s "${evaluation_file}" ]]; then
+    echo "[ERROR] Cannot package nginx-bert model: missing validation metrics file ${evaluation_file}." >&2
+    echo "[ERROR] Run scripts/train_log_model.sh with LOG_TRAIN_WAIT=true, or set LOG_EVALUATION_FILE to an approved metrics JSON file." >&2
+    exit 1
+  fi
 
   python3 "${ROOT_DIR}/scripts/modelops.py" package \
     --model-name nginx-bert \
@@ -54,7 +60,7 @@ package_log() {
     --training-job-name "${training_job_name}" \
     --model-artifact-s3-uri "${artifact_s3_uri}" \
     --local-model-artifact "${local_model_artifact}" \
-    --evaluation-file "${LOG_EVALUATION_FILE:-}" \
+    --evaluation-file "${evaluation_file}" \
     --threshold "${LOG_ANOMALY_THRESHOLD:-}" \
     --training-data-version "${LOG_TRAINING_DATA_VERSION:-synthetic-nginx-v1}" \
     --output-dir "${ROOT_DIR}/dist/modelops"

@@ -58,6 +58,10 @@ for model_name, expected_content_type in required.items():
         errors.append(f"{model_name}: evaluation model_name mismatch")
     if "inference_contract" not in evaluation:
         errors.append(f"{model_name}: evaluation missing inference_contract")
+    if not evaluation.get("metrics"):
+        errors.append(f"{model_name}: evaluation metrics are empty")
+    if (evaluation.get("thresholds") or {}).get("anomaly_score_threshold") is None:
+        errors.append(f"{model_name}: evaluation missing anomaly_score_threshold")
 
 if errors:
     print("Model handoff validation failed:", file=sys.stderr)

@@ -44,4 +44,19 @@ if [[ ! -s "${DIST_DIR}/tuning_job_name.txt" ]]; then
   exit 1
 fi
 
+if [[ "${LOG_TRAIN_WAIT:-false}" == "true" ]]; then
+  tuning_job_name="$(tr -d '[:space:]' < "${DIST_DIR}/tuning_job_name.txt")"
+  python3 03_validate_model.py \
+    --tuning-job-name "${tuning_job_name}" \
+    --minimum-f1 "${LOG_MIN_F1:-0.8}" \
+    --output-file "${DIST_DIR}/evaluation_metrics.json" | tee "${DIST_DIR}/validation.log"
+
+  if [[ ! -s "${DIST_DIR}/evaluation_metrics.json" ]]; then
+    echo "[ERROR] Log model validation did not publish ${DIST_DIR}/evaluation_metrics.json." >&2
+    exit 1
+  fi
+else
+  echo "[WARN] LOG_TRAIN_WAIT is not true; skipping log model evaluation metrics export." >&2
+fi
+
 echo "[INFO] Log model training metadata written to ${DIST_DIR}"
