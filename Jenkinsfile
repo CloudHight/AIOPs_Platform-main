@@ -1,26 +1,38 @@
-def resolveTargetEnvironment() {
+def normalizeBranchName(String branchName) {
+  if (!branchName) {
+    return ''
+  }
+
+  return branchName.replaceFirst('^refs/heads/', '')
+    .replaceFirst('^refs/remotes/origin/', '')
+    .replaceFirst('^remotes/origin/', '')
+    .replaceFirst('^origin/', '')
+    .replaceFirst('\\^0$', '')
+}
+
+def resolveTargetEnvironment(String sourceBranch) {
   if (params.TARGET_ENV != 'auto') {
     return params.TARGET_ENV
   }
 
-  if (env.BRANCH_NAME == 'main') {
+  if (sourceBranch == 'main') {
     return 'prod'
   }
-  if (env.BRANCH_NAME == 'develop') {
+  if (sourceBranch == 'develop') {
     return 'dev'
   }
-  if (env.BRANCH_NAME?.startsWith('release/')) {
+  if (sourceBranch?.startsWith('release/')) {
     return 'stage'
   }
   return 'dev'
 }
 
-def assertBranchPolicy(String targetEnv) {
-  if (targetEnv == 'prod' && env.BRANCH_NAME != 'main') {
-    error("prod deployment is only allowed from main; current branch is ${env.BRANCH_NAME}")
+def assertBranchPolicy(String targetEnv, String sourceBranch) {
+  if (targetEnv == 'prod' && sourceBranch != 'main') {
+    error("prod deployment is only allowed from main; resolved source branch is ${sourceBranch ?: 'unknown'}")
   }
-  if (targetEnv == 'stage' && !(env.BRANCH_NAME == 'main' || env.BRANCH_NAME?.startsWith('release/'))) {
-    error("stage deployment is only allowed from release/* or main; current branch is ${env.BRANCH_NAME}")
+  if (targetEnv == 'stage' && !(sourceBranch == 'main' || sourceBranch?.startsWith('release/'))) {
+    error("stage deployment is only allowed from release/* or main; resolved source branch is ${sourceBranch ?: 'unknown'}")
   }
 }
 
@@ -68,8 +80,26 @@ pipeline {
     stage('Resolve Environment') {
       steps {
         script {
-          env.TARGET_ENV_RESOLVED = resolveTargetEnvironment()
-          assertBranchPolicy(env.TARGET_ENV_RESOLVED)
+          String sourceBranch = normalizeBranchName(env.BRANCH_NAME ?: env.GIT_BRANCH ?: '')
+          if (!sourceBranch) {
+            sourceBranch = normalizeBranchName(sh(
+              returnStdout: true,
+              script: '''
+                set +e
+                branch="$(git branch --show-current 2>/dev/null)"
+                if [ -z "${branch}" ]; then
+                  branch="$(git name-rev --name-only HEAD 2>/dev/null)"
+                fi
+                printf '%s' "${branch}"
+              '''
+            ).trim())
+          }
+          if (!sourceBranch || sourceBranch == 'undefined') {
+            error('Unable to resolve source branch from Jenkins or Git checkout metadata.')
+          }
+          env.SOURCE_BRANCH_RESOLVED = sourceBranch
+          env.TARGET_ENV_RESOLVED = resolveTargetEnvironment(env.SOURCE_BRANCH_RESOLVED)
+          assertBranchPolicy(env.TARGET_ENV_RESOLVED, env.SOURCE_BRANCH_RESOLVED)
           if (params.APPLY && params.DESTROY) {
             error('APPLY and DESTROY are mutually exclusive.')
           }
@@ -77,13 +107,14 @@ pipeline {
             error("DESTROY_CONFIRM must exactly equal destroy-${env.TARGET_ENV_RESOLVED}.")
           }
           env.TF_ROOT = "infra/envs/${env.TARGET_ENV_RESOLVED}"
-          env.MODEL_VERSION = "${env.BRANCH_NAME ?: 'local'}-${env.BUILD_NUMBER}".replaceAll('[^A-Za-z0-9_.-]', '-')
+          env.MODEL_VERSION = "${env.SOURCE_BRANCH_RESOLVED}-${env.BUILD_NUMBER}".replaceAll('[^A-Za-z0-9_.-]', '-')
           env.AWS_DEPLOY_ROLE_CREDENTIAL_ID = "aws-deploy-role-arn-${env.TARGET_ENV_RESOLVED}"
         }
         sh '''
           set -eu
           test -d "${TF_ROOT}"
           mkdir -p "${DIST_DIR}" "${REPORTS_DIR}"
+          printf 'Source branch: %s\n' "${SOURCE_BRANCH_RESOLVED}"
           printf 'Target environment: %s\n' "${TARGET_ENV_RESOLVED}"
           printf 'Terraform root: %s\n' "${TF_ROOT}"
           printf 'Model version: %s\n' "${MODEL_VERSION}"
