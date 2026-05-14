@@ -53,6 +53,17 @@ variable "subnet_id" {
   default     = null
 }
 
+variable "allowed_availability_zones" {
+  description = "Optional AZ allow-list for automatic subnet selection. If empty, Terraform uses AZs where the requested instance type is offered."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for az in var.allowed_availability_zones : can(regex("^[a-z]{2}-[a-z]+-[0-9][a-z]$", az))])
+    error_message = "allowed_availability_zones entries must be valid availability zone names such as us-east-1a."
+  }
+}
+
 variable "associate_public_ip_address" {
   description = "Whether to associate a public IP address with the workload instance."
   type        = bool

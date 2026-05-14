@@ -94,7 +94,12 @@ module "lambda_function" {
   remediation_cooldown_minutes = var.remediation_cooldown_minutes
   nginx_log_group_arns         = var.nginx_log_group_arns
   kms_key_arn                  = var.kms_key_arn
-  common_tags                  = var.common_tags
+  lambda_environment_kms_key_arn = (
+    var.lambda_environment_kms_key_arn != null
+    ? var.lambda_environment_kms_key_arn
+    : var.kms_key_arn
+  )
+  common_tags = var.common_tags
 }
 
 module "eventbridge" {

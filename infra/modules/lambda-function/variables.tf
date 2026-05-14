@@ -105,6 +105,12 @@ variable "kms_key_arn" {
   default     = null
 }
 
+variable "lambda_environment_kms_key_arn" {
+  description = "Optional real KMS key ARN for Lambda environment variable encryption. Lambda CreateGrant does not support alias ARNs."
+  type        = string
+  default     = null
+}
+
 variable "s3_object_version" {
   description = "Optional version ID for S3 Lambda artifact."
   type        = string

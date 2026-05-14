@@ -3,12 +3,27 @@ data "aws_vpc" "default" {
   default = true
 }
 
+data "aws_ec2_instance_type_offerings" "workload" {
+  count         = var.subnet_id == null ? 1 : 0
+  location_type = "availability-zone"
+
+  filter {
+    name   = "instance-type"
+    values = [var.instance_type]
+  }
+}
+
 data "aws_subnets" "selected" {
   count = var.subnet_id == null ? 1 : 0
 
   filter {
     name   = "vpc-id"
     values = [local.vpc_id]
+  }
+
+  filter {
+    name   = "availability-zone"
+    values = local.workload_availability_zones
   }
 }
 
@@ -25,7 +40,12 @@ data "aws_ami" "amazon_linux" {
 locals {
   name_prefix = "${var.name_prefix}-${var.environment}"
   vpc_id      = var.vpc_id != null ? var.vpc_id : data.aws_vpc.default[0].id
-  subnet_id   = var.subnet_id != null ? var.subnet_id : sort(data.aws_subnets.selected[0].ids)[0]
+  workload_availability_zones = var.subnet_id != null ? [] : (
+    length(var.allowed_availability_zones) > 0
+    ? var.allowed_availability_zones
+    : sort(data.aws_ec2_instance_type_offerings.workload[0].locations)
+  )
+  subnet_id = var.subnet_id != null ? var.subnet_id : sort(data.aws_subnets.selected[0].ids)[0]
 
   workload_tags = merge(
     var.common_tags,

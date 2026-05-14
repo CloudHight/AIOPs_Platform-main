@@ -174,6 +174,12 @@ variable "kms_key_arn" {
   default     = null
 }
 
+variable "lambda_environment_kms_key_arn" {
+  description = "Optional real KMS key ARN for Lambda environment variable encryption. Lambda CreateGrant does not accept alias ARNs."
+  type        = string
+  default     = null
+}
+
 variable "nginx_log_group_arns" {
   description = "Nginx log group ARNs readable by Lambda."
   type        = list(string)

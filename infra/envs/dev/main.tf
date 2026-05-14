@@ -100,6 +100,7 @@ module "ec2_workload" {
   name_prefix                 = "aiops"
   allowed_http_cidrs          = var.allowed_http_cidrs
   instance_type               = var.workload_instance_type
+  allowed_availability_zones  = var.workload_allowed_availability_zones
   app_image                   = var.workload_app_image
   associate_public_ip_address = var.workload_associate_public_ip
   log_retention_days          = var.workload_log_retention_days
@@ -174,6 +175,7 @@ module "aiops_control_plane" {
   lambda_source_code_hash             = var.lambda_source_code_hash
   lambda_local_package_path           = var.lambda_local_package_path
   kms_key_arn                         = local.aiops_kms_alias_arn
+  lambda_environment_kms_key_arn      = aws_kms_key.aiops.arn
   nginx_log_group_arns = [
     module.ec2_workload.nginx_access_log_group_arn,
     module.ec2_workload.nginx_error_log_group_arn

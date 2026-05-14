@@ -9,6 +9,7 @@ Terraform module for the monitored EC2 workload previously defined in `TERRAFORM
 - Looks up Amazon Linux 2 dynamically.
 - Creates Nginx access and error log groups with configurable retention.
 - Launches one EC2 instance tagged for anomaly monitoring.
+- Selects a subnet from AZs where the requested EC2 instance type is offered, unless an explicit subnet is provided.
 - Bootstraps Docker, Nginx, the application container, CloudWatch Agent, and `stress-ng`.
 
 ## Security Notes

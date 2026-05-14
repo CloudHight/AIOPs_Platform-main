@@ -7,6 +7,14 @@ locals {
   queue_arn_prefix     = "arn:${var.aws_partition}:sqs:${var.aws_region}:${var.aws_account_id}"
   processing_queue_arn = "${local.queue_arn_prefix}:${var.name_prefix}-anomaly-processing-${var.environment}"
   dlq_target_arn       = "${local.queue_arn_prefix}:${var.name_prefix}-anomaly-dlq-${var.environment}"
+  configured_kms_key_arns = distinct([
+    for arn in [
+      var.kms_key_arn,
+      var.lambda_environment_kms_key_arn
+    ] : arn
+    if arn != null && arn != ""
+  ])
+  kms_policy_resources = length(local.configured_kms_key_arns) > 0 ? local.configured_kms_key_arns : ["*"]
   log_group_arns = length(var.nginx_log_group_arns) > 0 ? [
     for arn in var.nginx_log_group_arns : "${arn}:*"
     ] : [
@@ -133,7 +141,7 @@ resource "aws_iam_role_policy" "lambda" {
         Action = [
           "kms:Decrypt"
         ]
-        Resource = var.kms_key_arn == null ? "*" : var.kms_key_arn
+        Resource = local.kms_policy_resources
         Condition = {
           StringEquals = {
             "kms:ViaService" = "ssm.${data.aws_region.current.name}.amazonaws.com"
@@ -203,6 +211,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 resource "aws_lambda_function" "anomaly_detection" {
   #checkov:skip=CKV_AWS_117: Function calls AWS public service APIs only; VPC attachment is environment-specific and would require NAT or VPC endpoints.
   #checkov:skip=CKV_AWS_272: Code signing is a planned promotion gate; Jenkins currently verifies deterministic package hashes before Terraform deployment.
+  #checkov:skip=CKV_AWS_173: Lambda receives a customer-managed KMS key ARN; greenfield plan scans may not resolve same-plan key ARNs.
   function_name = local.function_name
   description   = "Detects CPU and log anomalies, creates Jira tickets, and triggers auto-remediation"
   role          = aws_iam_role.lambda.arn
@@ -210,7 +219,11 @@ resource "aws_lambda_function" "anomaly_detection" {
   runtime       = var.runtime
   timeout       = var.timeout_seconds
   memory_size   = var.memory_size_mb
-  kms_key_arn   = var.kms_key_arn
+  kms_key_arn = (
+    var.lambda_environment_kms_key_arn != null
+    ? var.lambda_environment_kms_key_arn
+    : var.kms_key_arn
+  )
 
   reserved_concurrent_executions = var.reserved_concurrent_executions
 

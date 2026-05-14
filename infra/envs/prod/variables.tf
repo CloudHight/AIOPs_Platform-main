@@ -54,6 +54,12 @@ variable "workload_instance_type" {
   default     = "t3.medium"
 }
 
+variable "workload_allowed_availability_zones" {
+  description = "Optional AZ allow-list for the monitored workload. Leave empty to use AZs where the workload instance type is offered."
+  type        = list(string)
+  default     = []
+}
+
 variable "workload_app_image" {
   description = "Container image URI for the monitored workload."
   type        = string
