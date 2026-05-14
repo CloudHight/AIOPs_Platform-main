@@ -1,6 +1,10 @@
 import argparse
+import json
 import os
+import sys
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 import boto3
 from sagemaker import get_execution_role
@@ -20,6 +24,7 @@ def parse_args():
     parser.add_argument("--role", default=os.environ.get("SAGEMAKER_EXECUTION_ROLE_ARN"))
     parser.add_argument("--wait", action="store_true")
     parser.add_argument("--poll-seconds", type=int, default=60)
+    parser.add_argument("--metadata-output", help="Optional path to write tuning job metadata JSON")
     return parser.parse_args()
 
 
@@ -77,7 +82,7 @@ def launch_sagemaker_tuning(train_uri: str, val_uri: str, test_uri: str, train_s
     return tuner
 
 
-def monitor_tuning_job(tuning_job_name: str, poll_seconds: int) -> None:
+def monitor_tuning_job(tuning_job_name: str, poll_seconds: int) -> str:
     sm_client = boto3.client("sagemaker")
     print(f"[INFO] Watching tuning job: {tuning_job_name}")
 
@@ -104,9 +109,20 @@ def monitor_tuning_job(tuning_job_name: str, poll_seconds: int) -> None:
 
         if status in TERMINAL_STATUSES:
             print(f"[INFO] Tuning job finished with status: {status}")
-            return
+            return status
 
         time.sleep(poll_seconds)
+
+
+def write_tuning_metadata(output_path: str, tuning_job_name: str) -> None:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "tuning_job_name": tuning_job_name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"[INFO] Tuning metadata written to {path}")
 
 
 if __name__ == "__main__":
@@ -119,5 +135,10 @@ if __name__ == "__main__":
         role=args.role,
     )
     print(f"[INFO] Tuning job name: {tuner.latest_tuning_job.name}")
+    if args.metadata_output:
+        write_tuning_metadata(args.metadata_output, tuner.latest_tuning_job.name)
     if args.wait:
-        monitor_tuning_job(tuner.latest_tuning_job.name, args.poll_seconds)
+        status = monitor_tuning_job(tuner.latest_tuning_job.name, args.poll_seconds)
+        if status != "Completed":
+            print(f"[ERROR] Tuning job did not complete successfully: {status}", file=sys.stderr)
+            sys.exit(1)

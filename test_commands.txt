@@ -17,16 +17,18 @@ log-model-image-uri
 763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:1.13-transformers4.26-gpu-py39-cu117-ubuntu20.04
 
 
-jenkins creadentials
+#### Jenkins Creadentials ####
 aws-deploy-role-arn-dev
 aws-deploy-role-arn-stage
 aws-deploy-role-arn-prod
-model-artifact-bucket
-lambda-artifact-bucket
-sagemaker-execution-role-arn
+model-artifact-bucket -  aiops-bucket-test11
+lambda-artifact-bucket  -  aiops-bucket-test11
+sagemaker-execution-role-arn  -  aiops-sagemaker-role
+cpu-model-image-uri  -  382416733822.dkr.ecr.us-east-1.amazonaws.com/randomcutforest:1
+log-model-image-uri  -  763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:1.13-transformers4.26-gpu-py39-cu117-ubuntu20.04
 
 
-jenkins plugins
+#### Jenkins Plugins ####
 Pipeline
 Git
 Credentials Binding

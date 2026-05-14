@@ -26,9 +26,22 @@ python3 02_train_model.py \
   --bucket "${MODEL_ARTIFACT_BUCKET}" \
   --prefix "${DATA_PREFIX}" \
   --train-script train.py \
+  --metadata-output "${DIST_DIR}/training_metadata.json" \
   "${WAIT_ARGS[@]}" | tee "${DIST_DIR}/training.log"
 
-grep -Eo 'hf-nginx-anomaly-update-[A-Za-z0-9-]+' "${DIST_DIR}/training.log" | tail -1 > "${DIST_DIR}/tuning_job_name.txt" || true
+if [[ -s "${DIST_DIR}/training_metadata.json" ]]; then
+  python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["tuning_job_name"])' \
+    "${DIST_DIR}/training_metadata.json" > "${DIST_DIR}/tuning_job_name.txt"
+else
+  grep -Eo 'Tuning job name: [A-Za-z0-9_.-]+' "${DIST_DIR}/training.log" \
+    | awk '{print $4}' \
+    | tail -1 > "${DIST_DIR}/tuning_job_name.txt" || true
+fi
+
+if [[ ! -s "${DIST_DIR}/tuning_job_name.txt" ]]; then
+  echo "[ERROR] Log model training completed without publishing a SageMaker tuning job name." >&2
+  echo "[ERROR] Expected ${DIST_DIR}/training_metadata.json or a 'Tuning job name:' line in ${DIST_DIR}/training.log." >&2
+  exit 1
+fi
 
 echo "[INFO] Log model training metadata written to ${DIST_DIR}"
-
