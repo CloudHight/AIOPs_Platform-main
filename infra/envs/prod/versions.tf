@@ -2,13 +2,13 @@ terraform {
   required_version = ">= 1.6.0"
 
   # Configure after running infra/backend.
-  # backend "s3" {
-  #   bucket         = "replace-with-backend-bucket"
-  #   key            = "aiops/prod/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   dynamodb_table = "aiops-terraform-locks"
-  #   encrypt        = true
-  # }
+  backend "s3" {
+    bucket         = "motiva-aiops-terraform-state"
+    key            = "aiops/prod/terraform.tfstate"
+    region         = "us-east-1"
+    # dynamodb_table = "aiops-terraform-locks"
+    encrypt        = true
+  }
 
   required_providers {
     aws = {
