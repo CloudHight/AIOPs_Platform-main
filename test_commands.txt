@@ -35,3 +35,4 @@ Credentials Binding
 Timestamper
 AnsiColor
 JUnit
+Multibranch Scan Webhook Trigger
