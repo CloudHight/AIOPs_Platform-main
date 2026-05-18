@@ -23,6 +23,26 @@ output "security_group_id" {
   value       = aws_security_group.workload.id
 }
 
+output "alb_dns_name" {
+  description = "DNS name for the optional stage/demo HTTP ALB."
+  value       = try(aws_lb.demo[0].dns_name, null)
+}
+
+output "alb_url" {
+  description = "HTTP URL for the optional stage/demo ALB."
+  value       = try("http://${aws_lb.demo[0].dns_name}", null)
+}
+
+output "alb_security_group_id" {
+  description = "Security group ID for the optional stage/demo ALB."
+  value       = try(aws_security_group.alb[0].id, null)
+}
+
+output "alb_target_group_arn" {
+  description = "Target group ARN for the optional stage/demo ALB."
+  value       = try(aws_lb_target_group.demo[0].arn, null)
+}
+
 output "instance_profile_name" {
   description = "IAM instance profile name for the workload."
   value       = aws_iam_instance_profile.workload.name

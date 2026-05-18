@@ -178,6 +178,7 @@ Typical dev pipeline parameters:
 ```text
 TARGET_ENV=dev
 TRAIN_MODELS=true
+DEPLOY_SAGEMAKER_ENDPOINTS=true
 APPLY=true
 RUN_SMOKE_TESTS=true
 ```
@@ -278,7 +279,7 @@ cpu_model_image_uri        = "<sagemaker-cpu-image-uri>"
 log_model_image_uri        = "<sagemaker-log-image-uri>"
 ```
 
-The current model scripts still need explicit SageMaker execution role support before fully unattended Jenkins model training is reliable outside Notebook/Studio contexts.
+The root Jenkinsfile now writes `enable_sagemaker_endpoints` into `jenkins.auto.tfvars.json` from the `DEPLOY_SAGEMAKER_ENDPOINTS` parameter and validates `model-artifacts.auto.tfvars.json` before Terraform planning. Keep `TRAIN_MODELS=true` when deploying Terraform-managed endpoints so endpoint updates are tied to fresh approved artifacts from the same build.
 
 ## Post-Apply Steps
 
@@ -317,13 +318,13 @@ Jenkins runs IaC/security checks as required gates:
 ```bash
 tflint --recursive
 terraform show -json tfplan > tfplan.json
-checkov -f tfplan.json --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_173,CKV_AWS_272,CKV2_AWS_57
+checkov -f tfplan.json --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57
 scripts/secret_scan.sh
 ```
 
 The pipeline runs Checkov against the saved plan for the resolved target environment. Full-repository IaC scans should run as a separate security review job so a dev deployment is not blocked by unrelated backend, Jenkins bootstrap, stage, or prod root modules.
 
-The Checkov skips are reviewed project exceptions: EC2 user data is covered by secret scanning and contains no embedded credentials, Lambda is not VPC-attached because it calls AWS public service APIs, Lambda environment encryption is configured with a customer-managed KMS key but plan scans cannot always resolve same-plan key references, Lambda code signing is not yet part of the packaging contract, and Jira API token rotation is handled operationally because Atlassian token rotation is external to AWS.
+The Checkov skips are reviewed project exceptions: EC2 user data is covered by secret scanning and contains no embedded credentials; the stage/demo ALB is temporarily HTTP-only, public, without WAF, deletion protection, or access logs by explicit demo requirement; Lambda is not VPC-attached because it calls AWS public service APIs; Lambda environment encryption is configured with a customer-managed KMS key but plan scans cannot always resolve same-plan key references; Lambda code signing is not yet part of the packaging contract; and Jira API token rotation is handled operationally because Atlassian token rotation is external to AWS.
 
 ## Smoke Testing
 

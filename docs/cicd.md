@@ -20,6 +20,7 @@ The `TARGET_ENV` parameter can override automatic mapping, but the Jenkinsfile b
 - `TARGET_ENV`: `auto`, `dev`, `stage`, or `prod`.
 - `APPLY`: applies the saved Terraform plan when enabled.
 - `TRAIN_MODELS`: runs the CPU/log model build, packaging, upload, and Terraform handoff flow.
+- `DEPLOY_SAGEMAKER_ENDPOINTS`: deploys Terraform-managed SageMaker endpoints from the model handoff. Leave enabled for full AIOps deployments; disable only when the Lambda should use pre-existing endpoint names.
 - `RUN_SMOKE_TESTS`: runs smoke tests after apply.
 
 ## Required Credentials
@@ -73,13 +74,16 @@ The current RCF and BERT training scripts still use SageMaker SDK role discovery
 5. `Python Quality`
 6. `Model Build and Validation`
 7. `Package Lambda`
-8. `Terraform Init`
+8. `Validate Terraform Handoff`
+   - verifies Jenkins artifact variables are present
+   - when `DEPLOY_SAGEMAKER_ENDPOINTS=true`, verifies CPU/log model artifact URIs and image URIs are present before planning
+9. `Terraform Init`
    - validates the remote-state S3 bucket and DynamoDB lock table before init
-9. `Terraform Quality`
-10. `Terraform Plan`
-11. `Approval`
-12. `Terraform Apply`
-13. `Smoke Tests`
+10. `Terraform Quality`
+11. `Terraform Plan`
+12. `Approval`
+13. `Terraform Apply`
+14. `Smoke Tests`
 
 ## Artifact Flow
 
@@ -113,6 +117,17 @@ s3://<lambda-artifact-bucket>/lambda/<env>/<build-number>/aiops-lambda.zip
 
 It then writes `infra/envs/<env>/jenkins.auto.tfvars.json` with the Lambda artifact reference and source hash.
 
+The same file also carries the endpoint deployment switch:
+
+```json
+{
+  "enable_aiops_control_plane": true,
+  "enable_sagemaker_endpoints": true
+}
+```
+
+When `DEPLOY_SAGEMAKER_ENDPOINTS=true`, Jenkins requires `TRAIN_MODELS=true` so the plan consumes a fresh `model-artifacts.auto.tfvars.json` from the current build. This prevents Terraform from silently planning with `enable_sagemaker_endpoints=false` or with stale local artifact values.
+
 ## Terraform Plan and Apply
 
 Jenkins always creates a saved plan:
@@ -121,7 +136,7 @@ Jenkins always creates a saved plan:
 terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars.json
 terraform show -no-color tfplan > tfplan.txt
 terraform show -json tfplan > tfplan.json
-checkov -f tfplan.json --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_173,CKV_AWS_272,CKV2_AWS_57
+checkov -f tfplan.json --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57
 ```
 
 Apply uses the saved plan only:

@@ -94,8 +94,11 @@ Typical Jenkins parameters:
 TARGET_ENV=dev
 APPLY=true
 TRAIN_MODELS=true
+DEPLOY_SAGEMAKER_ENDPOINTS=true
 RUN_SMOKE_TESTS=true
 ```
+
+For full AIOps deployments, keep `TRAIN_MODELS=true` and `DEPLOY_SAGEMAKER_ENDPOINTS=true` together. Jenkins will train and validate both models, publish immutable artifacts, write `model-artifacts.auto.tfvars.json`, and pass `enable_sagemaker_endpoints=true` to Terraform. If `DEPLOY_SAGEMAKER_ENDPOINTS=false`, Terraform skips SageMaker endpoint resources and the Lambda uses the configured existing endpoint names instead.
 
 Local plan-only workflow:
 

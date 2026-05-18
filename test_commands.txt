@@ -36,3 +36,9 @@ Timestamper
 AnsiColor
 JUnit
 Multibranch Scan Webhook Trigger
+
+
+
+aws ssm start-session \
+  --target <instance-id> \
+  --region us-east-1

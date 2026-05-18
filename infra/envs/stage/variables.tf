@@ -48,6 +48,24 @@ variable "allowed_http_cidrs" {
   default     = []
 }
 
+variable "enable_public_http_alb" {
+  description = "Whether to create a temporary public HTTP-only ALB for stage/demo access."
+  type        = bool
+  default     = true
+}
+
+variable "alb_allowed_http_cidrs" {
+  description = "CIDR blocks allowed to reach the temporary stage/demo ALB over HTTP."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+variable "alb_subnet_ids" {
+  description = "Optional subnet IDs for the temporary stage/demo ALB. Leave empty to use automatically selected VPC subnets."
+  type        = list(string)
+  default     = []
+}
+
 variable "workload_instance_type" {
   description = "EC2 instance type for the monitored workload."
   type        = string

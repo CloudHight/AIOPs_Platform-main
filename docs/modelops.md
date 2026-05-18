@@ -40,6 +40,15 @@ scripts/upload_model_artifacts.sh
 scripts/write_model_tfvars.sh infra/envs/dev/model-artifacts.auto.tfvars.json
 ```
 
+In Jenkins, set both parameters for endpoint deployment:
+
+```text
+TRAIN_MODELS=true
+DEPLOY_SAGEMAKER_ENDPOINTS=true
+```
+
+`TRAIN_MODELS` creates the approved artifact handoff. `DEPLOY_SAGEMAKER_ENDPOINTS` tells Terraform to create or update the SageMaker endpoint resources from that handoff. The Jenkinsfile blocks `DEPLOY_SAGEMAKER_ENDPOINTS=true` with `TRAIN_MODELS=false` because a clean checkout should not depend on stale local tfvars.
+
 ## Jenkins Readiness Note
 
 The RCF and BERT launchers now support Jenkins-driven training through the `SAGEMAKER_EXECUTION_ROLE_ARN` environment variable. Store that role ARN in the Jenkins `sagemaker-execution-role-arn` secret text credential.
@@ -96,6 +105,14 @@ The generated tfvars file contains:
 ```
 
 Terraform deploys endpoints through `infra/modules/sagemaker-endpoint`.
+
+The endpoint switch is stored separately in `infra/envs/<env>/jenkins.auto.tfvars.json`:
+
+```json
+{
+  "enable_sagemaker_endpoints": true
+}
+```
 
 ## Validation Expectations
 

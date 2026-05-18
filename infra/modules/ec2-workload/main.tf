@@ -46,6 +46,15 @@ locals {
     : sort(data.aws_ec2_instance_type_offerings.workload[0].locations)
   )
   subnet_id = var.subnet_id != null ? var.subnet_id : sort(data.aws_subnets.selected[0].ids)[0]
+  alb_subnet_ids = (
+    length(var.alb_subnet_ids) > 0
+    ? var.alb_subnet_ids
+    : (
+      var.subnet_id != null
+      ? [var.subnet_id]
+      : sort(data.aws_subnets.selected[0].ids)
+    )
+  )
 
   workload_tags = merge(
     var.common_tags,
@@ -122,6 +131,18 @@ resource "aws_security_group" "workload" {
     }
   }
 
+  dynamic "ingress" {
+    for_each = var.enable_public_http_alb ? [aws_security_group.alb[0].id] : []
+
+    content {
+      description     = "HTTP from demo ALB"
+      from_port       = 80
+      to_port         = 80
+      protocol        = "tcp"
+      security_groups = [ingress.value]
+    }
+  }
+
   egress {
     description = "Outbound HTTPS for SSM, CloudWatch, ECR, package install, and image pull"
     from_port   = 443
@@ -132,6 +153,39 @@ resource "aws_security_group" "workload" {
 
   tags = merge(var.common_tags, {
     Name = "${local.name_prefix}-workload-sg"
+  })
+}
+
+resource "aws_security_group" "alb" {
+  count = var.enable_public_http_alb ? 1 : 0
+
+  #checkov:skip=CKV_AWS_260: Stage/demo explicitly requires temporary HTTP access from the configured CIDRs; production must keep this disabled.
+  name        = "${local.name_prefix}-demo-alb-sg"
+  description = "Temporary public HTTP access for stage/demo ALB"
+  vpc_id      = local.vpc_id
+
+  dynamic "ingress" {
+    for_each = toset(var.alb_allowed_http_cidrs)
+
+    content {
+      description = "Temporary demo HTTP"
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
+  }
+
+  egress {
+    description = "Forward HTTP to workload instances"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, {
+    Name = "${local.name_prefix}-demo-alb-sg"
   })
 }
 
@@ -174,4 +228,76 @@ resource "aws_instance" "workload" {
     aws_iam_role_policy_attachment.cloudwatch_agent,
     aws_iam_role_policy_attachment.ssm,
   ]
+}
+
+resource "aws_lb" "demo" {
+  count = var.enable_public_http_alb ? 1 : 0
+
+  #checkov:skip=CKV_AWS_91: Stage/demo ALB access logs are intentionally omitted to keep the temporary demo path simple.
+  #checkov:skip=CKV_AWS_131: Drop invalid headers is not required for this temporary HTTP-only demo endpoint.
+  #checkov:skip=CKV_AWS_150: Deletion protection is intentionally disabled for ephemeral stage/demo infrastructure.
+  name               = "${local.name_prefix}-demo-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb[0].id]
+  subnets            = local.alb_subnet_ids
+
+  tags = merge(var.common_tags, {
+    Name = "${local.name_prefix}-demo-alb"
+  })
+
+  lifecycle {
+    precondition {
+      condition     = length(local.alb_subnet_ids) >= 2
+      error_message = "enable_public_http_alb requires at least two subnet IDs. Set alb_subnet_ids if automatic subnet selection finds fewer than two."
+    }
+  }
+}
+
+resource "aws_lb_target_group" "demo" {
+  count = var.enable_public_http_alb ? 1 : 0
+
+  #checkov:skip=CKV_AWS_378: Stage/demo requirement is HTTP-only; use HTTPS target groups for production.
+  name     = "${local.name_prefix}-demo-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = local.vpc_id
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200-399"
+    path                = "/"
+    protocol            = "HTTP"
+    timeout             = 5
+    unhealthy_threshold = 3
+  }
+
+  tags = merge(var.common_tags, {
+    Name = "${local.name_prefix}-demo-tg"
+  })
+}
+
+resource "aws_lb_target_group_attachment" "demo" {
+  count = var.enable_public_http_alb ? 1 : 0
+
+  target_group_arn = aws_lb_target_group.demo[0].arn
+  target_id        = aws_instance.workload.id
+  port             = 80
+}
+
+resource "aws_lb_listener" "demo_http" {
+  count = var.enable_public_http_alb ? 1 : 0
+
+  #checkov:skip=CKV_AWS_2: Stage/demo explicitly requires temporary HTTP-only access; production must use HTTPS.
+  #checkov:skip=CKV_AWS_103: Stage/demo explicitly requires temporary HTTP-only access; production must use HTTPS policies.
+  load_balancer_arn = aws_lb.demo[0].arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.demo[0].arn
+  }
 }

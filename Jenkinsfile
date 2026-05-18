@@ -53,6 +53,7 @@ pipeline {
     booleanParam(name: 'DESTROY', defaultValue: false, description: 'Destroy the selected Terraform environment.')
     string(name: 'DESTROY_CONFIRM', defaultValue: '', description: 'Type destroy-<env> to confirm destroy.')
     booleanParam(name: 'TRAIN_MODELS', defaultValue: true, description: 'Train, package, and publish model artifacts.')
+    booleanParam(name: 'DEPLOY_SAGEMAKER_ENDPOINTS', defaultValue: true, description: 'Deploy SageMaker endpoints from the model artifact handoff. Disable only when using existing endpoint names.')
     booleanParam(name: 'RUN_SMOKE_TESTS', defaultValue: true, description: 'Run smoke tests after apply.')
   }
 
@@ -103,12 +104,16 @@ pipeline {
           if (params.APPLY && params.DESTROY) {
             error('APPLY and DESTROY are mutually exclusive.')
           }
+          if (!params.DESTROY && params.DEPLOY_SAGEMAKER_ENDPOINTS && !params.TRAIN_MODELS) {
+            error('DEPLOY_SAGEMAKER_ENDPOINTS=true requires TRAIN_MODELS=true so Terraform receives fresh approved model artifacts.')
+          }
           if (params.DESTROY && params.DESTROY_CONFIRM != "destroy-${env.TARGET_ENV_RESOLVED}") {
             error("DESTROY_CONFIRM must exactly equal destroy-${env.TARGET_ENV_RESOLVED}.")
           }
           env.TF_ROOT = "infra/envs/${env.TARGET_ENV_RESOLVED}"
           env.MODEL_VERSION = "${env.SOURCE_BRANCH_RESOLVED}-${env.BUILD_NUMBER}".replaceAll('[^A-Za-z0-9_.-]', '-')
           env.AWS_DEPLOY_ROLE_CREDENTIAL_ID = "aws-deploy-role-arn-${env.TARGET_ENV_RESOLVED}"
+          env.DEPLOY_SAGEMAKER_ENDPOINTS_RESOLVED = (!params.DESTROY && params.DEPLOY_SAGEMAKER_ENDPOINTS).toString()
         }
         sh '''
           set -eu
@@ -118,6 +123,7 @@ pipeline {
           printf 'Target environment: %s\n' "${TARGET_ENV_RESOLVED}"
           printf 'Terraform root: %s\n' "${TF_ROOT}"
           printf 'Model version: %s\n' "${MODEL_VERSION}"
+          printf 'Deploy SageMaker endpoints: %s\n' "${DEPLOY_SAGEMAKER_ENDPOINTS_RESOLVED}"
         '''
       }
     }
@@ -289,13 +295,15 @@ PY
               --arg bucket "${LAMBDA_ARTIFACT_BUCKET}" \
               --arg key "lambda/${TARGET_ENV_RESOLVED}/${BUILD_NUMBER}/aiops-lambda.zip" \
               --arg hash "$(cat dist/lambda/aiops-lambda.zip.base64sha256)" \
+              --argjson enable_sagemaker_endpoints "${DEPLOY_SAGEMAKER_ENDPOINTS_RESOLVED}" \
               '{
                 aws_account_id: $account_id,
                 aws_region: $region,
                 lambda_artifact_bucket: $bucket,
                 lambda_artifact_key: $key,
                 lambda_source_code_hash: $hash,
-                enable_aiops_control_plane: true
+                enable_aiops_control_plane: true,
+                enable_sagemaker_endpoints: $enable_sagemaker_endpoints
               }' > "${TF_ROOT}/jenkins.auto.tfvars.json"
           '''
         }
@@ -303,6 +311,36 @@ PY
       post {
         always {
           archiveArtifacts allowEmptyArchive: true, fingerprint: true, artifacts: 'dist/lambda/**/*'
+        }
+      }
+    }
+
+    stage('Validate Terraform Handoff') {
+      when {
+        expression { return !params.DESTROY }
+      }
+      steps {
+        sh '''
+          set -eu
+          test -s "${TF_ROOT}/jenkins.auto.tfvars.json"
+          jq -e '.aws_account_id and .aws_region and .lambda_artifact_bucket and .lambda_artifact_key and .lambda_source_code_hash and (.enable_aiops_control_plane == true) and (.enable_sagemaker_endpoints | type == "boolean")' \
+            "${TF_ROOT}/jenkins.auto.tfvars.json" >/dev/null
+
+          if [ "${DEPLOY_SAGEMAKER_ENDPOINTS_RESOLVED}" = "true" ]; then
+            test -s "${TF_ROOT}/model-artifacts.auto.tfvars.json"
+            jq -e '
+              (.model_version | type == "string" and length > 0) and
+              (.cpu_model_artifact_s3_uri | test("^s3://")) and
+              (.log_model_artifact_s3_uri | test("^s3://")) and
+              (.cpu_model_image_uri | type == "string" and length > 0) and
+              (.log_model_image_uri | type == "string" and length > 0)
+            ' "${TF_ROOT}/model-artifacts.auto.tfvars.json" >/dev/null
+          fi
+        '''
+      }
+      post {
+        always {
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'infra/envs/*/jenkins.auto.tfvars.json,infra/envs/*/model-artifacts.auto.tfvars.json'
         }
       }
     }
@@ -406,7 +444,7 @@ PY
                 terraform show -json tfplan > tfplan.json
               fi
               ../../../.iac-venv/bin/checkov -f tfplan.json \
-                --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_173,CKV_AWS_272,CKV2_AWS_57 \
+                --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57 \
                 -o cli -o json --output-file-path ../../../reports/checkov
             '''
           }
