@@ -12,7 +12,24 @@ data "aws_iam_policy_document" "sagemaker_assume_role" {
 }
 
 locals {
-  resource_prefix = "${var.name_prefix}-${var.environment}-${var.model_name}"
+  raw_resource_prefix = "${var.name_prefix}-${var.environment}-${var.model_name}"
+  normalized_resource_prefix = trim(
+    replace(
+      replace(local.raw_resource_prefix, "/[^A-Za-z0-9-]/", "-"),
+      "/-+/",
+      "-"
+    ),
+    "-"
+  )
+  resource_prefix_base = local.normalized_resource_prefix != "" ? local.normalized_resource_prefix : "aiops-model"
+  resource_prefix_hash = substr(md5(local.raw_resource_prefix), 0, 8)
+  # SageMaker endpoint configuration names are limited to 63 chars. Keep the shared
+  # prefix short enough for "-endpoint-config" while preserving uniqueness.
+  resource_prefix = (
+    length(local.resource_prefix_base) <= 47
+    ? local.resource_prefix_base
+    : "${substr(local.resource_prefix_base, 0, 38)}-${local.resource_prefix_hash}"
+  )
   execution_role_arn = (
     var.execution_role_arn != null
     ? var.execution_role_arn
