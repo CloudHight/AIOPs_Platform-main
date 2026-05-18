@@ -347,6 +347,7 @@ PY
             export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
             export AWS_DEFAULT_REGION="${AWS_REGION}"
             scripts/validate_terraform_backend.sh "${TF_ROOT}"
+            scripts/validate_runtime_kms_state.sh "${TARGET_ENV_RESOLVED}"
           '''
           dir("${env.TF_ROOT}") {
             sh '''
@@ -364,7 +365,7 @@ PY
       }
       post {
         always {
-          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/terraform-backend-*.txt'
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/terraform-backend-*.txt,reports/runtime-kms-*.txt'
         }
       }
     }
