@@ -406,7 +406,7 @@ PY
                 terraform show -json tfplan > tfplan.json
               fi
               ../../../.iac-venv/bin/checkov -f tfplan.json \
-                --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_272,CKV2_AWS_57 \
+                --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_173,CKV_AWS_272,CKV2_AWS_57 \
                 -o cli -o json --output-file-path ../../../reports/checkov
             '''
           }

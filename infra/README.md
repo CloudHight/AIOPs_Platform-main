@@ -317,13 +317,13 @@ Jenkins runs IaC/security checks as required gates:
 ```bash
 tflint --recursive
 terraform show -json tfplan > tfplan.json
-checkov -f tfplan.json --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_272,CKV2_AWS_57
+checkov -f tfplan.json --skip-check CKV_AWS_46,CKV_AWS_117,CKV_AWS_173,CKV_AWS_272,CKV2_AWS_57
 scripts/secret_scan.sh
 ```
 
 The pipeline runs Checkov against the saved plan for the resolved target environment. Full-repository IaC scans should run as a separate security review job so a dev deployment is not blocked by unrelated backend, Jenkins bootstrap, stage, or prod root modules.
 
-The Checkov skips are reviewed project exceptions: EC2 user data is covered by secret scanning and contains no embedded credentials, Lambda is not VPC-attached because it calls AWS public service APIs, Lambda code signing is not yet part of the packaging contract, and Jira API token rotation is handled operationally because Atlassian token rotation is external to AWS.
+The Checkov skips are reviewed project exceptions: EC2 user data is covered by secret scanning and contains no embedded credentials, Lambda is not VPC-attached because it calls AWS public service APIs, Lambda environment encryption is configured with a customer-managed KMS key but plan scans cannot always resolve same-plan key references, Lambda code signing is not yet part of the packaging contract, and Jira API token rotation is handled operationally because Atlassian token rotation is external to AWS.
 
 ## Smoke Testing
 
