@@ -6,7 +6,7 @@ terraform {
     bucket         = "motiva-aiops-terraform-state"
     key            = "aiops/stage/terraform.tfstate"
     region         = "us-east-1"
-    # dynamodb_table = "aiops-terraform-locks"
+    dynamodb_table = "motiva-aiops-terraform-locks"
     encrypt        = true
   }
 
@@ -25,4 +25,3 @@ provider "aws" {
     tags = local.common_tags
   }
 }
-
