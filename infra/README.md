@@ -233,7 +233,7 @@ terraform -chdir=infra/jenkins output jenkins_deploy_role_arns
 
 Additional pre-existing role ARNs can be added with `allowed_deploy_role_arns`.
 
-The created deploy roles include permissions for Terraform-managed resources, S3 artifact upload/read, SageMaker operations, Lambda deployment, CloudWatch, EventBridge, SQS, SNS, DynamoDB, SSM, Secrets Manager, and scoped `iam:PassRole` for project roles. Tighten these policies before production if stricter account boundaries are required.
+The created deploy roles include permissions for Terraform-managed resources, S3 artifact upload/read, SageMaker operations, Lambda deployment, EC2 and ELBv2 workload networking, CloudWatch, EventBridge, SQS, SNS, DynamoDB, SSM, Secrets Manager, and scoped `iam:PassRole` for project roles. Tighten these policies before production if stricter account boundaries are required.
 
 ## Local Environment Workflow
 
@@ -295,6 +295,8 @@ log_model_image_uri        = "<sagemaker-log-image-uri>"
 
 The root Jenkinsfile now writes `enable_sagemaker_endpoints` into `jenkins.auto.tfvars.json` from the `DEPLOY_SAGEMAKER_ENDPOINTS` parameter and validates `model-artifacts.auto.tfvars.json` before Terraform planning. Keep `TRAIN_MODELS=true` when deploying Terraform-managed endpoints so endpoint updates are tied to fresh approved artifacts from the same build.
 
+The log anomaly endpoint defaults to `ml.g5.xlarge`. AWS does not support passing an endpoint-configuration KMS key for some GPU instance families with NVMe instance storage, including `g4dn` and `g5`. The environment roots automatically omit endpoint storage KMS for those log endpoint instance types while keeping model artifacts, logs, state, DynamoDB, SQS, SNS, and Secrets Manager encrypted where supported. Use a non-NVMe instance family if endpoint storage KMS is a hard requirement.
+
 ## Post-Apply Steps
 
 After the control plane is deployed:
@@ -315,6 +317,8 @@ Example Jira secret payload:
 }
 ```
 
+By default, environment roots use an account-scoped Jira secret name such as `aiops-jira-credentials-stage-123456789012`. This avoids failed re-applies when an older environment-scoped secret name is still scheduled for deletion. Override `jira_secret_name` only when you are sure the target secret name is active or fully deleted.
+
 ## Quality Gates
 
 Local checks:
@@ -332,13 +336,13 @@ Jenkins runs IaC/security checks as required gates:
 ```bash
 tflint --recursive
 terraform show -json tfplan > tfplan.json
-checkov -f tfplan.json --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57
+checkov -f tfplan.json --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_98,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57
 scripts/secret_scan.sh
 ```
 
 The pipeline runs Checkov against the saved plan for the resolved target environment. Full-repository IaC scans should run as a separate security review job so a dev deployment is not blocked by unrelated backend, Jenkins bootstrap, stage, or prod root modules.
 
-The Checkov skips are reviewed project exceptions: EC2 user data is covered by secret scanning and contains no embedded credentials; the stage/demo ALB is temporarily HTTP-only, public, without WAF, deletion protection, or access logs by explicit demo requirement; Lambda is not VPC-attached because it calls AWS public service APIs; Lambda environment encryption is configured with a customer-managed KMS key but plan scans cannot always resolve same-plan key references; Lambda code signing is not yet part of the packaging contract; and Jira API token rotation is handled operationally because Atlassian token rotation is external to AWS.
+The Checkov skips are reviewed project exceptions: EC2 user data is covered by secret scanning and contains no embedded credentials; the stage/demo ALB is temporarily HTTP-only, public, without WAF, deletion protection, or access logs by explicit demo requirement; the log SageMaker endpoint may run on GPU/NVMe instance families where AWS rejects endpoint storage KMS; Lambda is not VPC-attached because it calls AWS public service APIs; Lambda environment encryption is configured with a customer-managed KMS key but plan scans cannot always resolve same-plan key references; Lambda code signing is not yet part of the packaging contract; and Jira API token rotation is handled operationally because Atlassian token rotation is external to AWS.
 
 ## Smoke Testing
 

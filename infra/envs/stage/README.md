@@ -26,6 +26,18 @@ APPROVED_MODEL_VERSION=release-v1.0.0-26
 
 Jenkins verifies the model artifacts, metadata, and evaluation files exist for both model families before planning.
 
+The default log endpoint instance type is `ml.g5.xlarge`. AWS rejects endpoint configuration KMS keys for some GPU/NVMe instance families, including `g5`, so this root automatically disables endpoint storage KMS only for those log endpoint instance types. Other supported storage surfaces remain KMS-backed.
+
+## Jira Secret Name
+
+The control plane defaults the Jira secret name to an account-scoped value:
+
+```text
+aiops-jira-credentials-stage-<aws-account-id>
+```
+
+This avoids re-apply failures when an older stage secret name is still scheduled for deletion in Secrets Manager. Populate the created secret value out of band after apply.
+
 ## Temporary Demo ALB
 
 Stage supports an optional HTTP-only public ALB for demo validation:

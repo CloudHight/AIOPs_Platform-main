@@ -59,6 +59,12 @@ variable "kms_key_arn" {
   default     = null
 }
 
+variable "encrypt_endpoint_storage" {
+  description = "Whether to pass kms_key_arn to the SageMaker endpoint configuration. Disable for endpoint instance families where AWS does not support KMS with NVMe instance storage."
+  type        = bool
+  default     = true
+}
+
 variable "alarm_actions" {
   description = "Alarm action ARNs for SageMaker endpoint alarms."
   type        = list(string)

@@ -108,6 +108,23 @@ variable "jira_project_key" {
   default     = "PROJ"
 }
 
+variable "jira_secret_name" {
+  description = "Optional explicit Jira credentials secret name. Defaults to an account-scoped prod name to avoid scheduled-deletion conflicts."
+  type        = string
+  default     = null
+}
+
+variable "jira_secret_recovery_window_in_days" {
+  description = "Recovery window for the Jira credentials secret."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.jira_secret_recovery_window_in_days == 0 || (var.jira_secret_recovery_window_in_days >= 7 && var.jira_secret_recovery_window_in_days <= 30)
+    error_message = "jira_secret_recovery_window_in_days must be 0 for immediate deletion or between 7 and 30 days."
+  }
+}
+
 variable "monitoring_frequency" {
   description = "EventBridge schedule expression."
   type        = string

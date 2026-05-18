@@ -112,6 +112,7 @@ resource "aws_iam_role_policy" "jenkins_deploy" {
           "autoscaling:*",
           "cloudwatch:*",
           "ec2:*",
+          "elasticloadbalancing:*",
           "events:*",
           "lambda:*",
           "logs:*",

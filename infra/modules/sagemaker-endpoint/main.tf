@@ -157,7 +157,7 @@ resource "aws_sagemaker_model" "this" {
 
 resource "aws_sagemaker_endpoint_configuration" "this" {
   name        = "${local.resource_prefix}-endpoint-config"
-  kms_key_arn = var.kms_key_arn
+  kms_key_arn = var.encrypt_endpoint_storage ? var.kms_key_arn : null
 
   production_variants {
     variant_name           = "AllTraffic"

@@ -42,3 +42,13 @@ Multibranch Scan Webhook Trigger
 aws ssm start-session \
   --target <instance-id> \
   --region us-east-1
+
+
+
+TARGET_ENV=stage
+APPLY=true
+TRAIN_MODELS=false
+DEPLOY_SAGEMAKER_ENDPOINTS=true
+USE_EXISTING_MODEL_ARTIFACTS=true
+APPROVED_MODEL_VERSION=release-v1.0.0-24
+RUN_SMOKE_TESTS=true
