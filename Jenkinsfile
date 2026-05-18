@@ -54,6 +54,8 @@ pipeline {
     string(name: 'DESTROY_CONFIRM', defaultValue: '', description: 'Type destroy-<env> to confirm destroy.')
     booleanParam(name: 'TRAIN_MODELS', defaultValue: true, description: 'Train, package, and publish model artifacts.')
     booleanParam(name: 'DEPLOY_SAGEMAKER_ENDPOINTS', defaultValue: true, description: 'Deploy SageMaker endpoints from the model artifact handoff. Disable only when using existing endpoint names.')
+    booleanParam(name: 'USE_EXISTING_MODEL_ARTIFACTS', defaultValue: false, description: 'Use a previously approved model version instead of training models in this build.')
+    string(name: 'APPROVED_MODEL_VERSION', defaultValue: '', description: 'Existing approved model version under models/cpu-rcf and models/nginx-bert. Required when USE_EXISTING_MODEL_ARTIFACTS=true.')
     booleanParam(name: 'RUN_SMOKE_TESTS', defaultValue: true, description: 'Run smoke tests after apply.')
   }
 
@@ -104,16 +106,30 @@ pipeline {
           if (params.APPLY && params.DESTROY) {
             error('APPLY and DESTROY are mutually exclusive.')
           }
-          if (!params.DESTROY && params.DEPLOY_SAGEMAKER_ENDPOINTS && !params.TRAIN_MODELS) {
-            error('DEPLOY_SAGEMAKER_ENDPOINTS=true requires TRAIN_MODELS=true so Terraform receives fresh approved model artifacts.')
+          if (params.TRAIN_MODELS && params.USE_EXISTING_MODEL_ARTIFACTS) {
+            error('TRAIN_MODELS and USE_EXISTING_MODEL_ARTIFACTS are mutually exclusive.')
+          }
+          if (!params.DESTROY && params.DEPLOY_SAGEMAKER_ENDPOINTS && !params.TRAIN_MODELS && !params.USE_EXISTING_MODEL_ARTIFACTS) {
+            error('DEPLOY_SAGEMAKER_ENDPOINTS=true requires TRAIN_MODELS=true or USE_EXISTING_MODEL_ARTIFACTS=true.')
+          }
+          if (!params.DESTROY && params.USE_EXISTING_MODEL_ARTIFACTS && !params.DEPLOY_SAGEMAKER_ENDPOINTS) {
+            error('USE_EXISTING_MODEL_ARTIFACTS=true only makes sense when DEPLOY_SAGEMAKER_ENDPOINTS=true.')
+          }
+          if (!params.DESTROY && params.USE_EXISTING_MODEL_ARTIFACTS && !params.APPROVED_MODEL_VERSION?.trim()) {
+            error('APPROVED_MODEL_VERSION is required when USE_EXISTING_MODEL_ARTIFACTS=true.')
           }
           if (params.DESTROY && params.DESTROY_CONFIRM != "destroy-${env.TARGET_ENV_RESOLVED}") {
             error("DESTROY_CONFIRM must exactly equal destroy-${env.TARGET_ENV_RESOLVED}.")
           }
           env.TF_ROOT = "infra/envs/${env.TARGET_ENV_RESOLVED}"
-          env.MODEL_VERSION = "${env.SOURCE_BRANCH_RESOLVED}-${env.BUILD_NUMBER}".replaceAll('[^A-Za-z0-9_.-]', '-')
+          env.MODEL_VERSION = (
+            params.USE_EXISTING_MODEL_ARTIFACTS
+            ? params.APPROVED_MODEL_VERSION.trim()
+            : "${env.SOURCE_BRANCH_RESOLVED}-${env.BUILD_NUMBER}".replaceAll('[^A-Za-z0-9_.-]', '-')
+          )
           env.AWS_DEPLOY_ROLE_CREDENTIAL_ID = "aws-deploy-role-arn-${env.TARGET_ENV_RESOLVED}"
           env.DEPLOY_SAGEMAKER_ENDPOINTS_RESOLVED = (!params.DESTROY && params.DEPLOY_SAGEMAKER_ENDPOINTS).toString()
+          env.USE_EXISTING_MODEL_ARTIFACTS_RESOLVED = (!params.DESTROY && params.USE_EXISTING_MODEL_ARTIFACTS).toString()
         }
         sh '''
           set -eu
@@ -124,6 +140,7 @@ pipeline {
           printf 'Terraform root: %s\n' "${TF_ROOT}"
           printf 'Model version: %s\n' "${MODEL_VERSION}"
           printf 'Deploy SageMaker endpoints: %s\n' "${DEPLOY_SAGEMAKER_ENDPOINTS_RESOLVED}"
+          printf 'Use existing model artifacts: %s\n' "${USE_EXISTING_MODEL_ARTIFACTS_RESOLVED}"
         '''
       }
     }
@@ -264,6 +281,39 @@ PY
       post {
         always {
           archiveArtifacts allowEmptyArchive: true, artifacts: 'dist/modelops/**/*'
+        }
+      }
+    }
+
+    stage('Use Existing Model Artifacts') {
+      when {
+        expression { return params.USE_EXISTING_MODEL_ARTIFACTS && !params.DESTROY }
+      }
+      steps {
+        withCredentials([
+          string(credentialsId: 'model-artifact-bucket', variable: 'MODEL_ARTIFACT_BUCKET'),
+          string(credentialsId: 'cpu-model-image-uri', variable: 'CPU_MODEL_IMAGE_URI'),
+          string(credentialsId: 'log-model-image-uri', variable: 'LOG_MODEL_IMAGE_URI'),
+          string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')
+        ]) {
+          sh '''
+            set -eu
+            set +x
+            CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-existing-models-${BUILD_NUMBER}")"
+            export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
+            export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
+            export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
+            export AWS_DEFAULT_REGION="${AWS_REGION}"
+            export MODEL_ARTIFACT_BUCKET
+            export CPU_MODEL_IMAGE_URI
+            export LOG_MODEL_IMAGE_URI
+            scripts/write_existing_model_tfvars.sh "${MODEL_VERSION}" "${TF_ROOT}/model-artifacts.auto.tfvars.json"
+          '''
+        }
+      }
+      post {
+        always {
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'infra/envs/*/model-artifacts.auto.tfvars.json'
         }
       }
     }

@@ -21,6 +21,8 @@ The `TARGET_ENV` parameter can override automatic mapping, but the Jenkinsfile b
 - `APPLY`: applies the saved Terraform plan when enabled.
 - `TRAIN_MODELS`: runs the CPU/log model build, packaging, upload, and Terraform handoff flow.
 - `DEPLOY_SAGEMAKER_ENDPOINTS`: deploys Terraform-managed SageMaker endpoints from the model handoff. Leave enabled for full AIOps deployments; disable only when the Lambda should use pre-existing endpoint names.
+- `USE_EXISTING_MODEL_ARTIFACTS`: skips model training and deploys a previously approved model version from the artifact bucket.
+- `APPROVED_MODEL_VERSION`: required when `USE_EXISTING_MODEL_ARTIFACTS=true`; must exist for both `cpu-rcf` and `nginx-bert`.
 - `RUN_SMOKE_TESTS`: runs smoke tests after apply.
 
 ## Required Credentials
@@ -73,17 +75,20 @@ The current RCF and BERT training scripts still use SageMaker SDK role discovery
 4. `Python Install`
 5. `Python Quality`
 6. `Model Build and Validation`
-7. `Package Lambda`
-8. `Validate Terraform Handoff`
+7. `Use Existing Model Artifacts`
+   - runs only when `USE_EXISTING_MODEL_ARTIFACTS=true`
+   - verifies `model.tar.gz`, `metadata.json`, and `evaluation.json` exist for both models before writing the Terraform handoff
+8. `Package Lambda`
+9. `Validate Terraform Handoff`
    - verifies Jenkins artifact variables are present
    - when `DEPLOY_SAGEMAKER_ENDPOINTS=true`, verifies CPU/log model artifact URIs and image URIs are present before planning
-9. `Terraform Init`
+10. `Terraform Init`
    - validates the remote-state S3 bucket and DynamoDB lock table before init
-10. `Terraform Quality`
-11. `Terraform Plan`
-12. `Approval`
-13. `Terraform Apply`
-14. `Smoke Tests`
+11. `Terraform Quality`
+12. `Terraform Plan`
+13. `Approval`
+14. `Terraform Apply`
+15. `Smoke Tests`
 
 ## Artifact Flow
 
@@ -126,7 +131,16 @@ The same file also carries the endpoint deployment switch:
 }
 ```
 
-When `DEPLOY_SAGEMAKER_ENDPOINTS=true`, Jenkins requires `TRAIN_MODELS=true` so the plan consumes a fresh `model-artifacts.auto.tfvars.json` from the current build. This prevents Terraform from silently planning with `enable_sagemaker_endpoints=false` or with stale local artifact values.
+When `DEPLOY_SAGEMAKER_ENDPOINTS=true`, Jenkins requires either `TRAIN_MODELS=true` or `USE_EXISTING_MODEL_ARTIFACTS=true`. Fresh training writes the handoff from the current build. Existing-artifact deployment regenerates the handoff from the approved version in S3 after verifying both models have `model.tar.gz`, `metadata.json`, and `evaluation.json`. This prevents Terraform from silently planning with `enable_sagemaker_endpoints=false` or with stale local artifact values.
+
+Approved existing artifact deployment parameters:
+
+```text
+TRAIN_MODELS=false
+DEPLOY_SAGEMAKER_ENDPOINTS=true
+USE_EXISTING_MODEL_ARTIFACTS=true
+APPROVED_MODEL_VERSION=release-v1.0.0-26
+```
 
 ## Terraform Plan and Apply
 

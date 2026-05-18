@@ -9,6 +9,7 @@ Model workflow:
 - `package_model_artifacts.sh` creates `metadata.json`, `evaluation.json`, and handoff files.
 - `upload_model_artifacts.sh` publishes immutable artifacts to S3.
 - `write_model_tfvars.sh` writes Terraform model artifact variables.
+- `write_existing_model_tfvars.sh` verifies a previously approved model version in S3 and writes Terraform model artifact variables without retraining.
 - `package_lambda.sh` creates the deterministic Lambda zip and hashes.
 - `smoke_test.sh` validates applied AWS resources, dashboards, alarms, and optional synthetic anomalies from Terraform outputs.
 - `validate_terraform_backend.sh` verifies the S3/DynamoDB remote-state backend before `terraform init`.

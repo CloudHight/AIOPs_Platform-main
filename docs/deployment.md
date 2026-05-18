@@ -100,6 +100,20 @@ RUN_SMOKE_TESTS=true
 
 For full AIOps deployments, keep `TRAIN_MODELS=true` and `DEPLOY_SAGEMAKER_ENDPOINTS=true` together. Jenkins will train and validate both models, publish immutable artifacts, write `model-artifacts.auto.tfvars.json`, and pass `enable_sagemaker_endpoints=true` to Terraform. If `DEPLOY_SAGEMAKER_ENDPOINTS=false`, Terraform skips SageMaker endpoint resources and the Lambda uses the configured existing endpoint names instead.
 
+To redeploy endpoints from an already approved model version without retraining:
+
+```text
+TARGET_ENV=dev
+APPLY=true
+TRAIN_MODELS=false
+DEPLOY_SAGEMAKER_ENDPOINTS=true
+USE_EXISTING_MODEL_ARTIFACTS=true
+APPROVED_MODEL_VERSION=release-v1.0.0-26
+RUN_SMOKE_TESTS=true
+```
+
+Jenkins verifies the CPU and log model artifacts, metadata, and evaluation files exist in the model artifact bucket before Terraform planning.
+
 Local plan-only workflow:
 
 ```bash

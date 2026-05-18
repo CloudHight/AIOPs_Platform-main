@@ -155,6 +155,7 @@ scripts/write_model_tfvars.sh infra/envs/dev/model-artifacts.auto.tfvars.json
 
 Terraform consumes immutable artifact URIs and image URIs through `infra/modules/sagemaker-endpoint`.
 For Jenkins-managed endpoint deployment, run with `TRAIN_MODELS=true` and `DEPLOY_SAGEMAKER_ENDPOINTS=true` so Terraform receives both the model artifact handoff and `enable_sagemaker_endpoints=true`.
+To redeploy a previously approved model version without retraining, run Jenkins with `TRAIN_MODELS=false`, `USE_EXISTING_MODEL_ARTIFACTS=true`, `DEPLOY_SAGEMAKER_ENDPOINTS=true`, and `APPROVED_MODEL_VERSION=<version>`.
 
 Details: [docs/modelops.md](docs/modelops.md).
 

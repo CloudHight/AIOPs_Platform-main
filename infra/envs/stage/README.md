@@ -15,6 +15,17 @@ DEPLOY_SAGEMAKER_ENDPOINTS=true
 
 Jenkins writes `enable_sagemaker_endpoints=true` and validated CPU/log model artifact variables before Terraform planning. If endpoint deployment is disabled, this root module skips the SageMaker endpoint resources and the control plane uses the configured existing endpoint names.
 
+To reuse a previously approved model version without retraining:
+
+```text
+TRAIN_MODELS=false
+DEPLOY_SAGEMAKER_ENDPOINTS=true
+USE_EXISTING_MODEL_ARTIFACTS=true
+APPROVED_MODEL_VERSION=release-v1.0.0-26
+```
+
+Jenkins verifies the model artifacts, metadata, and evaluation files exist for both model families before planning.
+
 ## Temporary Demo ALB
 
 Stage supports an optional HTTP-only public ALB for demo validation:

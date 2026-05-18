@@ -47,7 +47,24 @@ TRAIN_MODELS=true
 DEPLOY_SAGEMAKER_ENDPOINTS=true
 ```
 
-`TRAIN_MODELS` creates the approved artifact handoff. `DEPLOY_SAGEMAKER_ENDPOINTS` tells Terraform to create or update the SageMaker endpoint resources from that handoff. The Jenkinsfile blocks `DEPLOY_SAGEMAKER_ENDPOINTS=true` with `TRAIN_MODELS=false` because a clean checkout should not depend on stale local tfvars.
+`TRAIN_MODELS` creates the approved artifact handoff. `DEPLOY_SAGEMAKER_ENDPOINTS` tells Terraform to create or update the SageMaker endpoint resources from that handoff.
+
+To deploy a previously approved version without retraining:
+
+```text
+TRAIN_MODELS=false
+DEPLOY_SAGEMAKER_ENDPOINTS=true
+USE_EXISTING_MODEL_ARTIFACTS=true
+APPROVED_MODEL_VERSION=release-v1.0.0-26
+```
+
+In that mode Jenkins runs `scripts/write_existing_model_tfvars.sh`, verifies these objects exist for both models, and then writes `infra/envs/<env>/model-artifacts.auto.tfvars.json`:
+
+```text
+models/<model-name>/<model-version>/model.tar.gz
+models/<model-name>/<model-version>/metadata.json
+models/<model-name>/<model-version>/evaluation.json
+```
 
 ## Jenkins Readiness Note
 

@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 data "aws_iam_policy_document" "sagemaker_assume_role" {
   statement {
     effect = "Allow"
@@ -10,6 +12,10 @@ data "aws_iam_policy_document" "sagemaker_assume_role" {
     actions = ["sts:AssumeRole"]
   }
 }
+
+data "aws_partition" "current" {}
+
+data "aws_region" "current" {}
 
 locals {
   raw_resource_prefix = "${var.name_prefix}-${var.environment}-${var.model_name}"
@@ -30,6 +36,13 @@ locals {
     ? local.resource_prefix_base
     : "${substr(local.resource_prefix_base, 0, 38)}-${local.resource_prefix_hash}"
   )
+  model_artifact_path   = replace(var.model_artifact_s3_uri, "s3://", "")
+  model_artifact_bucket = split("/", local.model_artifact_path)[0]
+  model_artifact_key    = trimprefix(local.model_artifact_path, "${local.model_artifact_bucket}/")
+  sagemaker_log_group_arn = (
+    "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/*"
+  )
+  sagemaker_log_stream_arn = "${local.sagemaker_log_group_arn}:log-stream:*"
   execution_role_arn = (
     var.execution_role_arn != null
     ? var.execution_role_arn
@@ -54,36 +67,77 @@ resource "aws_iam_role_policy" "sagemaker_model_artifacts" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          "arn:aws:s3:::${split("/", replace(var.model_artifact_s3_uri, "s3://", ""))[0]}",
-          "arn:aws:s3:::${replace(var.model_artifact_s3_uri, "s3://", "")}"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogStreams"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "cloudwatch:PutMetricData"
-        ]
-        Resource = "*"
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Sid    = "ReadApprovedModelArtifact"
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject"
+          ]
+          Resource = [
+            "arn:${data.aws_partition.current.partition}:s3:::${local.model_artifact_bucket}/${local.model_artifact_key}"
+          ]
+        }
+      ],
+      var.kms_key_arn != null ? [
+        {
+          Sid    = "DecryptModelArtifacts"
+          Effect = "Allow"
+          Action = [
+            "kms:Decrypt",
+            "kms:DescribeKey"
+          ]
+          Resource = [
+            var.kms_key_arn
+          ]
+          Condition = {
+            StringEquals = {
+              "kms:ViaService"    = "s3.${data.aws_region.current.name}.amazonaws.com"
+              "kms:CallerAccount" = data.aws_caller_identity.current.account_id
+            }
+          }
+        }
+      ] : [],
+      [
+        {
+          Sid    = "CreateSageMakerLogGroups"
+          Effect = "Allow"
+          Action = [
+            "logs:CreateLogGroup"
+          ]
+          Resource = [
+            local.sagemaker_log_group_arn
+          ]
+        },
+        {
+          Sid    = "WriteSageMakerEndpointLogs"
+          Effect = "Allow"
+          Action = [
+            "logs:DescribeLogStreams",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ]
+          Resource = [
+            local.sagemaker_log_group_arn,
+            local.sagemaker_log_stream_arn
+          ]
+        },
+        {
+          Sid    = "PublishSageMakerMetrics"
+          Effect = "Allow"
+          Action = [
+            "cloudwatch:PutMetricData"
+          ]
+          Resource = "*"
+          Condition = {
+            StringEquals = {
+              "cloudwatch:namespace" = "AWS/SageMaker"
+            }
+          }
+        }
+      ]
+    )
   })
 }
 

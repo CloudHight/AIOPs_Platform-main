@@ -183,6 +183,20 @@ APPLY=true
 RUN_SMOKE_TESTS=true
 ```
 
+To skip model training and deploy previously approved SageMaker artifacts:
+
+```text
+TARGET_ENV=dev
+TRAIN_MODELS=false
+DEPLOY_SAGEMAKER_ENDPOINTS=true
+USE_EXISTING_MODEL_ARTIFACTS=true
+APPROVED_MODEL_VERSION=release-v1.0.0-26
+APPLY=true
+RUN_SMOKE_TESTS=true
+```
+
+Jenkins verifies the approved version exists for both model families before generating Terraform model variables.
+
 Stage and production should be deployed only through Jenkins. The intended branch mapping is:
 
 - `develop` or feature validation: `dev`
