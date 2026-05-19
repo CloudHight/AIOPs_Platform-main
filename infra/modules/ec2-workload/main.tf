@@ -234,13 +234,15 @@ resource "aws_lb" "demo" {
   count = var.enable_public_http_alb ? 1 : 0
 
   #checkov:skip=CKV_AWS_91: Stage/demo ALB access logs are intentionally omitted to keep the temporary demo path simple.
-  #checkov:skip=CKV_AWS_131: Drop invalid headers is not required for this temporary HTTP-only demo endpoint.
   #checkov:skip=CKV_AWS_150: Deletion protection is intentionally disabled for ephemeral stage/demo infrastructure.
-  name               = "${local.name_prefix}-demo-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb[0].id]
-  subnets            = local.alb_subnet_ids
+  #tfsec:ignore:aws-elb-alb-not-public
+  # Stage/demo explicitly requires a temporary public ALB; production must keep this disabled or use a hardened HTTPS ALB.
+  name                       = "${local.name_prefix}-demo-alb"
+  internal                   = false
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.alb[0].id]
+  subnets                    = local.alb_subnet_ids
+  drop_invalid_header_fields = true
 
   tags = merge(var.common_tags, {
     Name = "${local.name_prefix}-demo-alb"
@@ -292,6 +294,8 @@ resource "aws_lb_listener" "demo_http" {
 
   #checkov:skip=CKV_AWS_2: Stage/demo explicitly requires temporary HTTP-only access; production must use HTTPS.
   #checkov:skip=CKV_AWS_103: Stage/demo explicitly requires temporary HTTP-only access; production must use HTTPS policies.
+  #tfsec:ignore:aws-elb-http-not-used
+  # Stage/demo explicitly requires temporary HTTP-only access; production must use HTTPS.
   load_balancer_arn = aws_lb.demo[0].arn
   port              = 80
   protocol          = "HTTP"
