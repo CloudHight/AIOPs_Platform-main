@@ -14,6 +14,7 @@ Model workflow:
 - `smoke_test.sh` validates applied AWS resources, dashboards, alarms, and optional synthetic anomalies from Terraform outputs.
 - `validate_terraform_backend.sh` verifies the S3/DynamoDB remote-state backend before `terraform init`.
 - `validate_runtime_kms_state.sh` verifies existing runtime SSM SecureString parameters can still be decrypted before Terraform refresh/plan.
+- `validate_secret_lifecycle.sh` verifies planned Secrets Manager secret names are not active or scheduled for deletion before Terraform approval/apply.
 - `recover_kms_key.sh` cancels deletion and restores `alias/aiops-<env>` when the old KMS key is still the correct environment key.
 - `repair_ssm_runtime_parameters.sh` deletes only known broken runtime SSM parameters after explicit confirmation so Terraform can recreate them.
 - `cleanup_ephemeral.sh` removes transient local build and plan artifacts.

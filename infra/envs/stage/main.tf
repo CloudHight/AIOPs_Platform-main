@@ -173,7 +173,7 @@ module "aiops_control_plane" {
   cpu_model_endpoint                  = var.enable_sagemaker_endpoints ? module.cpu_sagemaker_endpoint[0].endpoint_name : var.cpu_model_endpoint
   log_model_endpoint                  = var.enable_sagemaker_endpoints ? module.log_sagemaker_endpoint[0].endpoint_name : var.log_model_endpoint
   jira_project_key                    = var.jira_project_key
-  jira_secret_name                    = coalesce(var.jira_secret_name, "aiops-jira-credentials-${var.environment}-${var.aws_account_id}")
+  jira_secret_name                    = coalesce(var.jira_secret_name, "aiops-jira-credentials-${var.environment}-${var.aws_account_id}-managed")
   jira_secret_recovery_window_in_days = var.jira_secret_recovery_window_in_days
   monitoring_frequency                = var.monitoring_frequency
   instance_tag_key                    = "AnomalyMonitoring"

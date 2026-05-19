@@ -526,6 +526,28 @@ PY
       }
     }
 
+    stage('Validate AWS Lifecycle Conflicts') {
+      when {
+        expression { return !params.DESTROY }
+      }
+      steps {
+        withCredentials([string(credentialsId: "${env.AWS_DEPLOY_ROLE_CREDENTIAL_ID}", variable: 'AWS_DEPLOY_ROLE_ARN')]) {
+          dir("${env.TF_ROOT}") {
+            sh '''
+              set -eu
+              set +x
+              CREDS="$(aws sts assume-role --role-arn "${AWS_DEPLOY_ROLE_ARN}" --role-session-name "jenkins-aiops-lifecycle-${BUILD_NUMBER}")"
+              export AWS_ACCESS_KEY_ID="$(printf '%s' "${CREDS}" | jq -r '.Credentials.AccessKeyId')"
+              export AWS_SECRET_ACCESS_KEY="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SecretAccessKey')"
+              export AWS_SESSION_TOKEN="$(printf '%s' "${CREDS}" | jq -r '.Credentials.SessionToken')"
+              export AWS_DEFAULT_REGION="${AWS_REGION}"
+              ../../../scripts/validate_secret_lifecycle.sh tfplan.json
+            '''
+          }
+        }
+      }
+    }
+
     stage('Approval') {
       when {
         expression { return params.DESTROY || (params.APPLY && env.TARGET_ENV_RESOLVED in ['stage', 'prod']) }

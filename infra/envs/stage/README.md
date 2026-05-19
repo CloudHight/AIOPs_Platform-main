@@ -30,13 +30,13 @@ The default log endpoint instance type is `ml.g5.xlarge`. AWS rejects endpoint c
 
 ## Jira Secret Name
 
-The control plane defaults the Jira secret name to an account-scoped value:
+The control plane defaults the Jira secret name to an account-scoped managed value:
 
 ```text
-aiops-jira-credentials-stage-<aws-account-id>
+aiops-jira-credentials-stage-<aws-account-id>-managed
 ```
 
-This avoids re-apply failures when an older stage secret name is still scheduled for deletion in Secrets Manager. Populate the created secret value out of band after apply.
+This avoids re-apply failures when an older stage secret name is still scheduled for deletion in Secrets Manager. Jenkins also validates planned Secrets Manager creations before approval/apply and fails early if the planned name is already active or pending deletion. Populate the created secret value out of band after apply.
 
 ## Temporary Demo Access
 

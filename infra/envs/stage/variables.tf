@@ -109,7 +109,7 @@ variable "jira_project_key" {
 }
 
 variable "jira_secret_name" {
-  description = "Optional explicit Jira credentials secret name. Defaults to an account-scoped stage name to avoid scheduled-deletion conflicts."
+  description = "Optional explicit Jira credentials secret name. Defaults to an account-scoped managed stage name to avoid scheduled-deletion conflicts."
   type        = string
   default     = null
 }

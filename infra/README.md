@@ -317,7 +317,7 @@ Example Jira secret payload:
 }
 ```
 
-By default, environment roots use an account-scoped Jira secret name such as `aiops-jira-credentials-stage-123456789012`. This avoids failed re-applies when an older environment-scoped secret name is still scheduled for deletion. Override `jira_secret_name` only when you are sure the target secret name is active or fully deleted.
+By default, environment roots use account-scoped Jira secret names. Stage uses `aiops-jira-credentials-stage-123456789012-managed` so it does not collide with older stage secret names that may still be scheduled for deletion. Jenkins validates planned Secrets Manager creations before approval/apply and fails early if a planned name is already active or pending deletion. Override `jira_secret_name` only when you are sure the target secret name is available, or when you plan to import and reuse an existing active secret.
 
 ## Quality Gates
 
