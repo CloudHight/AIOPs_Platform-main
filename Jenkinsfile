@@ -468,10 +468,16 @@ PY
             terraform validate
             tflint --init
             tflint --recursive
+            TFSEC_EXCLUDES="aws-ec2-no-public-ingress-sgr,aws-ec2-no-public-egress-sgr"
+            if [ "${TARGET_ENV_RESOLVED}" = "stage" ]; then
+              # Stage has an explicit temporary demo requirement for a public HTTP-only ALB.
+              # Keep this exception out of prod and keep all other HIGH/CRITICAL checks enforced.
+              TFSEC_EXCLUDES="${TFSEC_EXCLUDES},aws-elb-alb-not-public,aws-elb-http-not-used"
+            fi
             tfsec . \
               --minimum-severity HIGH \
               --exclude-downloaded-modules \
-              --exclude aws-ec2-no-public-ingress-sgr,aws-ec2-no-public-egress-sgr \
+              --exclude "${TFSEC_EXCLUDES}" \
               --format json \
               --out "../../../reports/tfsec-${TARGET_ENV_RESOLVED}.json"
           '''
