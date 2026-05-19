@@ -8,27 +8,27 @@ from typing import Any
 from .errors import InferenceError
 
 
-def invoke(endpoint_name: str, body: str | bytes, content_type: str, client=None) -> Any:
+def invoke(endpoint_name: str, request_body: str | bytes, content_type: str, client=None) -> Any:
     if client is None:
         from . import aws_clients
 
         runtime = aws_clients.sagemaker_runtime()
     else:
         runtime = client
-    body_bytes = body if isinstance(body, bytes) else body.encode("utf-8")
+    request_body_bytes = request_body if isinstance(request_body, bytes) else request_body.encode("utf-8")
     try:
         response = runtime.invoke_endpoint(
             EndpointName=endpoint_name,
             ContentType=content_type,
-            Body=body_bytes,
+            Body=request_body_bytes,
         )
-        body = response["Body"].read().decode("utf-8")
+        response_body = response["Body"].read().decode("utf-8")
     except Exception as exc:
         raise InferenceError(f"SageMaker invocation failed for {endpoint_name}: {exc}") from exc
     try:
-        return json.loads(body)
+        return json.loads(response_body)
     except json.JSONDecodeError as exc:
-        raise InferenceError(f"SageMaker response was not JSON for {endpoint_name}: {body[:200]}") from exc
+        raise InferenceError(f"SageMaker response was not JSON for {endpoint_name}: {response_body[:200]}") from exc
 
 
 def invoke_json(endpoint_name: str, payload: dict[str, Any], client=None) -> Any:
