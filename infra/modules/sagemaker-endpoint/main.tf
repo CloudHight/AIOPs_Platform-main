@@ -92,29 +92,6 @@ resource "aws_iam_role_policy" "sagemaker_model_artifacts" {
           ]
         }
       ],
-      local.model_image_is_ecr ? [
-        {
-          Sid    = "AuthenticateToEcrForModelImage"
-          Effect = "Allow"
-          Action = [
-            "ecr:GetAuthorizationToken"
-          ]
-          Resource = "*"
-        },
-        {
-          Sid    = "PullModelImageFromEcr"
-          Effect = "Allow"
-          Action = [
-            "ecr:BatchCheckLayerAvailability",
-            "ecr:BatchGetImage",
-            "ecr:DescribeImages",
-            "ecr:GetDownloadUrlForLayer"
-          ]
-          Resource = [
-            local.model_image_ecr_repository_arn
-          ]
-        }
-      ] : [],
       var.kms_key_arn != null ? [
         {
           Sid    = "DecryptModelArtifacts"
@@ -173,6 +150,40 @@ resource "aws_iam_role_policy" "sagemaker_model_artifacts" {
         }
       ]
     )
+  })
+}
+
+resource "aws_iam_role_policy" "sagemaker_model_image_ecr" {
+  count = var.execution_role_arn == null && local.model_image_is_ecr ? 1 : 0
+
+  name = "${local.resource_prefix}-model-image-ecr"
+  role = aws_iam_role.sagemaker[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AuthenticateToEcrForModelImage"
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PullModelImageFromEcr"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:DescribeImages",
+          "ecr:GetDownloadUrlForLayer"
+        ]
+        Resource = [
+          local.model_image_ecr_repository_arn
+        ]
+      }
+    ]
   })
 }
 
