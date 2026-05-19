@@ -506,8 +506,14 @@ PY
                 terraform show -no-color tfplan > tfplan.txt
                 terraform show -json tfplan > tfplan.json
               fi
+              CHECKOV_SKIPS="CKV_AWS_46,CKV_AWS_98,CKV_AWS_117,CKV_AWS_173,CKV_AWS_272,CKV2_AWS_57"
+              if [ "${TARGET_ENV_RESOLVED}" = "stage" ]; then
+                # Stage has an explicit temporary demo requirement for direct HTTP over the workload public IP.
+                # Keep public-IP and public-ingress exceptions out of prod.
+                CHECKOV_SKIPS="${CHECKOV_SKIPS},CKV_AWS_88,CKV_AWS_260"
+              fi
               ../../../.iac-venv/bin/checkov -f tfplan.json \
-                --skip-check CKV_AWS_46,CKV_AWS_98,CKV_AWS_117,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV2_AWS_57 \
+                --skip-check "${CHECKOV_SKIPS}" \
                 -o cli -o json --output-file-path ../../../reports/checkov
             '''
           }
