@@ -35,7 +35,7 @@ variable "vpc_id" {
 }
 
 variable "subnet_id" {
-  description = "Subnet ID for Jenkins. If null, the first subnet in the selected VPC is used."
+  description = "Subnet ID for Jenkins. If null, Terraform selects a subnet in the selected VPC where the requested instance type is offered."
   type        = string
   default     = null
 }
@@ -43,25 +43,25 @@ variable "subnet_id" {
 variable "associate_public_ip_address" {
   description = "Whether Jenkins should receive a public IP."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "allowed_jenkins_cidrs" {
-  description = "CIDRs allowed to reach Jenkins on port 8080. Keep empty and use SSM/port forwarding when possible."
+  description = "CIDRs allowed to reach Jenkins on port 8080."
   type        = list(string)
-  default     = []
+  default     = ["0.0.0.0/0"]
 }
 
 variable "root_volume_size_gb" {
   description = "Root volume size in GiB."
   type        = number
-  default     = 40
+  default     = 100
 }
 
 variable "jenkins_home_volume_size_gb" {
   description = "Jenkins home volume size in GiB."
   type        = number
-  default     = 100
+  default     = 300
 }
 
 variable "allowed_deploy_role_arns" {

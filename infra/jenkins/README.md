@@ -16,16 +16,20 @@ This stack is separate from `infra/envs/dev`, `infra/envs/stage`, and `infra/env
 
 ## Security Defaults
 
-Defaults are intentionally conservative:
+The bootstrap example exposes the Jenkins UI publicly on port 8080:
 
 ```hcl
-associate_public_ip_address = false
-allowed_jenkins_cidrs       = []
+associate_public_ip_address = true
+allowed_jenkins_cidrs       = ["0.0.0.0/0"]
 ```
 
-Use SSM Session Manager or private network access. If you need temporary browser access, set `associate_public_ip_address = true` and restrict `allowed_jenkins_cidrs` to your public IP CIDR.
+This is a demo convenience setting. Jenkins still uses SSM Session Manager for administrative shell access, and no Jenkins admin password, AWS key, Jira token, or plugin secret is stored in Terraform.
 
-No Jenkins admin password, AWS key, Jira token, or plugin secret is stored in Terraform.
+After apply, open the URL from:
+
+```bash
+terraform output -raw jenkins_url
+```
 
 ## Deploy
 

@@ -3,17 +3,21 @@ environment = "tools"
 project     = "AIOps"
 name_prefix = "aiops"
 
-instance_type                = "t3.medium"
-vpc_id                       = null
-subnet_id                    = null
-associate_public_ip_address  = false
-allowed_jenkins_cidrs        = []
-root_volume_size_gb          = 40
-jenkins_home_volume_size_gb  = 100
+instance_type               = "t3.medium"
+vpc_id                      = null
+subnet_id                   = null
+associate_public_ip_address = true
+
+allowed_jenkins_cidrs = [
+  "0.0.0.0/0"
+]
+
+root_volume_size_gb         = 40
+jenkins_home_volume_size_gb = 100
 
 # Create deploy roles for the application environments and allow Jenkins to assume them.
-create_deploy_roles           = true
-deploy_role_environments      = ["dev", "stage", "prod"]
+create_deploy_roles              = true
+deploy_role_environments         = ["dev", "stage", "prod"]
 deploy_role_max_session_duration = 3600
 
 # Optional extra managed policies to attach to each created deploy role.
