@@ -38,19 +38,19 @@ aiops-jira-credentials-stage-<aws-account-id>
 
 This avoids re-apply failures when an older stage secret name is still scheduled for deletion in Secrets Manager. Populate the created secret value out of band after apply.
 
-## Temporary Demo ALB
+## Temporary Demo Access
 
-Stage supports an optional HTTP-only public ALB for demo validation:
+Stage exposes the workload instance directly over HTTP for temporary demo validation:
 
 ```hcl
-enable_public_http_alb = true
-alb_allowed_http_cidrs = ["0.0.0.0/0"]
+workload_associate_public_ip = true
+allowed_http_cidrs           = ["0.0.0.0/0"]
 ```
 
-This exposes only the ALB on port 80. The workload instance still uses SSM for administration and receives HTTP from the ALB security group. Treat this as temporary demo exposure; production should use HTTPS, restricted CIDRs, and WAF where appropriate.
+This exposes only port 80 on the workload instance. Administration still uses SSM Session Manager; SSH remains closed. Treat this as temporary demo exposure. Production should use HTTPS, restricted CIDRs, and a hardened load balancer or private access path.
 
 After apply, use:
 
 ```bash
-terraform output workload_alb_url
+terraform output workload_public_url
 ```

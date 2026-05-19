@@ -18,24 +18,14 @@ output "workload_instance_public_ip" {
   value       = module.ec2_workload.instance_public_ip
 }
 
+output "workload_public_url" {
+  description = "Temporary stage/demo HTTP URL for direct access to the workload instance public IP."
+  value       = module.ec2_workload.instance_public_url
+}
+
 output "workload_security_group_id" {
   description = "Security group ID for the monitored workload."
   value       = module.ec2_workload.security_group_id
-}
-
-output "workload_alb_url" {
-  description = "Temporary stage/demo HTTP ALB URL when enabled."
-  value       = module.ec2_workload.alb_url
-}
-
-output "workload_alb_dns_name" {
-  description = "Temporary stage/demo HTTP ALB DNS name when enabled."
-  value       = module.ec2_workload.alb_dns_name
-}
-
-output "workload_alb_security_group_id" {
-  description = "Security group ID for the temporary stage/demo ALB when enabled."
-  value       = module.ec2_workload.alb_security_group_id
 }
 
 output "workload_nginx_access_log_group_name" {

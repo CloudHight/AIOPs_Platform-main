@@ -99,9 +99,6 @@ module "ec2_workload" {
   environment                 = var.environment
   name_prefix                 = "aiops"
   allowed_http_cidrs          = var.allowed_http_cidrs
-  enable_public_http_alb      = var.enable_public_http_alb
-  alb_allowed_http_cidrs      = var.alb_allowed_http_cidrs
-  alb_subnet_ids              = var.alb_subnet_ids
   instance_type               = var.workload_instance_type
   allowed_availability_zones  = var.workload_allowed_availability_zones
   app_image                   = var.workload_app_image

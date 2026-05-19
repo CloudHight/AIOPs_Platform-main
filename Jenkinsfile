@@ -469,11 +469,6 @@ PY
             tflint --init
             tflint --recursive
             TFSEC_EXCLUDES="aws-ec2-no-public-ingress-sgr,aws-ec2-no-public-egress-sgr"
-            if [ "${TARGET_ENV_RESOLVED}" = "stage" ]; then
-              # Stage has an explicit temporary demo requirement for a public HTTP-only ALB.
-              # Keep this exception out of prod and keep all other HIGH/CRITICAL checks enforced.
-              TFSEC_EXCLUDES="${TFSEC_EXCLUDES},aws-elb-alb-not-public,aws-elb-http-not-used"
-            fi
             tfsec . \
               --minimum-severity HIGH \
               --exclude-downloaded-modules \
@@ -512,7 +507,7 @@ PY
                 terraform show -json tfplan > tfplan.json
               fi
               ../../../.iac-venv/bin/checkov -f tfplan.json \
-                --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_98,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57 \
+                --skip-check CKV_AWS_46,CKV_AWS_98,CKV_AWS_117,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV2_AWS_57 \
                 -o cli -o json --output-file-path ../../../reports/checkov
             '''
           }

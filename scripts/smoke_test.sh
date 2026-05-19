@@ -55,6 +55,24 @@ require_output() {
   fi
 }
 
+curl_with_retry() {
+  local url="$1"
+  local attempts="${2:-12}"
+  local delay_seconds="${3:-10}"
+  local attempt
+
+  for attempt in $(seq 1 "${attempts}"); do
+    if curl --fail --silent --show-error --max-time 10 "${url}"; then
+      return 0
+    fi
+    if [[ "${attempt}" -lt "${attempts}" ]]; then
+      sleep "${delay_seconds}"
+    fi
+  done
+
+  return 1
+}
+
 write_report() {
   local checks_json="[]"
   for item in "${CHECK_RESULTS[@]}"; do
@@ -75,6 +93,7 @@ write_report() {
 rm -f "${SUMMARY_FILE}"
 
 INSTANCE_ID="$(value workload_instance_id)"
+WORKLOAD_PUBLIC_URL="$(value workload_public_url)"
 ACCESS_LOG_GROUP="$(value workload_nginx_access_log_group_name)"
 ERROR_LOG_GROUP="$(value workload_nginx_error_log_group_name)"
 LAMBDA_FUNCTION="$(value aiops_lambda_function_name)"
@@ -87,6 +106,12 @@ CPU_ENDPOINT="$(value cpu_sagemaker_endpoint_name)"
 LOG_ENDPOINT="$(value log_sagemaker_endpoint_name)"
 
 require_output "terraform_output_instance" "${INSTANCE_ID}"
+if [[ -n "${WORKLOAD_PUBLIC_URL}" && "${WORKLOAD_PUBLIC_URL}" != "null" ]]; then
+  run_check "workload_public_http" curl_with_retry "${WORKLOAD_PUBLIC_URL}"
+else
+  record_check "workload_public_http" "SKIP" "public workload URL is not enabled"
+fi
+
 run_check "ec2_tag_discovery" aws ec2 describe-instances \
   --instance-ids "${INSTANCE_ID}" \
   --filters "Name=tag:AnomalyMonitoring,Values=enabled" "Name=tag:Project,Values=AIOPs"
@@ -107,22 +132,26 @@ for group in "${ACCESS_LOG_GROUP}" "${ERROR_LOG_GROUP}"; do
 done
 
 if [[ -n "${CPU_ENDPOINT}" && "${CPU_ENDPOINT}" != "null" ]]; then
+  CPU_SMOKE_PAYLOAD=$'75.0\n'
   run_check "sagemaker_cpu_endpoint" aws sagemaker-runtime invoke-endpoint \
     --endpoint-name "${CPU_ENDPOINT}" \
-    --content-type application/json \
+    --content-type text/csv \
     --cli-binary-format raw-in-base64-out \
-    --body '{"instances":[{"cpu_average":75.0}]}' \
+    --body "${CPU_SMOKE_PAYLOAD}" \
     "${REPORT_DIR}/cpu-endpoint-response.json"
 else
   record_check "sagemaker_cpu_endpoint" "SKIP" "endpoint not managed by this environment"
 fi
 
 if [[ -n "${LOG_ENDPOINT}" && "${LOG_ENDPOINT}" != "null" ]]; then
+  LOG_SMOKE_PAYLOAD="$(jq -cn \
+    --arg inputs '192.168.0.11 - - [16/Mar/2026:09:04:11 +0000] "POST /api/payments HTTP/1.1" 503 0 "-" "Mozilla/5.0" rt=3.428 req_id=beadbeadbeadbead' \
+    '{inputs: $inputs}')"
   run_check "sagemaker_log_endpoint" aws sagemaker-runtime invoke-endpoint \
     --endpoint-name "${LOG_ENDPOINT}" \
     --content-type application/json \
     --cli-binary-format raw-in-base64-out \
-    --body '{"instances":[{"error_count":3,"samples":["GET / HTTP/1.1 500"]}]}' \
+    --body "${LOG_SMOKE_PAYLOAD}" \
     "${REPORT_DIR}/log-endpoint-response.json"
 else
   record_check "sagemaker_log_endpoint" "SKIP" "endpoint not managed by this environment"

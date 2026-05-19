@@ -155,7 +155,7 @@ terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars.json
 terraform show -no-color tfplan > tfplan.txt
 terraform show -json tfplan > tfplan.json
 tfsec . --minimum-severity HIGH --exclude-downloaded-modules --exclude aws-ec2-no-public-ingress-sgr,aws-ec2-no-public-egress-sgr --format json --out ../../../reports/tfsec-<env>.json
-checkov -f tfplan.json --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_98,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57
+checkov -f tfplan.json --skip-check CKV_AWS_46,CKV_AWS_98,CKV_AWS_117,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV2_AWS_57
 ```
 
 Apply uses the saved plan only:

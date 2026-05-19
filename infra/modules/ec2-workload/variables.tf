@@ -29,29 +29,6 @@ variable "allowed_http_cidrs" {
   }
 }
 
-variable "enable_public_http_alb" {
-  description = "Whether to create a temporary public HTTP-only ALB for stage/demo access."
-  type        = bool
-  default     = false
-}
-
-variable "alb_allowed_http_cidrs" {
-  description = "CIDR blocks allowed to reach the optional demo ALB over HTTP."
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for cidr in var.alb_allowed_http_cidrs : can(cidrhost(cidr, 0))])
-    error_message = "alb_allowed_http_cidrs must contain valid CIDR blocks."
-  }
-}
-
-variable "alb_subnet_ids" {
-  description = "Optional subnet IDs for the public demo ALB. If empty, automatically selected VPC subnets are used."
-  type        = list(string)
-  default     = []
-}
-
 variable "instance_type" {
   description = "EC2 instance type for the monitored workload."
   type        = string

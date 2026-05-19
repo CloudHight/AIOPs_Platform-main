@@ -11,7 +11,7 @@ from .anomaly_store import AnomalyStore
 from .config import RuntimeConfig, load_config
 from .discovery import monitored_instance_ids
 from .events import EventPublisher
-from .inference import extract_score, invoke_json
+from .inference import extract_score, invoke_csv, invoke_json
 from .jira_client import JiraClient, load_jira_credentials
 from .logs_reader import recent_nginx_errors
 from .metrics_reader import average_cpu_utilization
@@ -93,16 +93,18 @@ def handle_detection_event(event: dict[str, Any], config: RuntimeConfig) -> dict
 
 def detect_signals(instance_id: str, config: RuntimeConfig) -> list[AnomalySignal]:
     cpu_average = average_cpu_utilization(instance_id) or 0.0
-    cpu_payload = {"instances": [{"instance_id": instance_id, "cpu_average": cpu_average}]}
     try:
-        cpu_response = invoke_json(config.cpu_model_endpoint, cpu_payload)
+        cpu_response = invoke_csv(config.cpu_model_endpoint, [cpu_average])
         cpu_score = extract_score(cpu_response, fallback=cpu_average / 100)
     except Exception as exc:
-        logger.warning("cpu_inference_failed_using_metric_fallback", extra={"instance_id": instance_id, "error": str(exc)})
+        logger.warning(
+            "cpu_inference_failed_using_metric_fallback",
+            extra={"instance_id": instance_id, "error": str(exc)},
+        )
         cpu_score = cpu_average / 100
 
     log_evidence = recent_nginx_errors(instance_id)
-    log_payload = {"instances": [{"instance_id": instance_id, **log_evidence}]}
+    log_payload = {"inputs": _log_inference_text(instance_id, log_evidence)}
     try:
         log_response = invoke_json(config.log_model_endpoint, log_payload)
         error_count = _float_evidence(log_evidence, "error_count")
@@ -132,6 +134,16 @@ def detect_signals(instance_id: str, config: RuntimeConfig) -> list[AnomalySigna
             model_endpoint=config.log_model_endpoint,
         ),
     ]
+
+
+def _log_inference_text(instance_id: str, log_evidence: dict[str, Any]) -> str:
+    samples = log_evidence.get("samples")
+    if isinstance(samples, list) and samples:
+        return "\n".join(str(sample) for sample in samples[:5])
+    error_count = _float_evidence(log_evidence, "error_count")
+    if error_count > 0:
+        return f"{instance_id} nginx error_count={error_count:.0f}"
+    return f"{instance_id} nginx healthy request 200"
 
 
 def handle_remediation_event(event: dict[str, Any], config: RuntimeConfig) -> dict[str, Any]:

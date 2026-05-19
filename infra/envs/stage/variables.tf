@@ -45,25 +45,7 @@ variable "project" {
 variable "allowed_http_cidrs" {
   description = "CIDR blocks allowed to reach the workload over HTTP."
   type        = list(string)
-  default     = []
-}
-
-variable "enable_public_http_alb" {
-  description = "Whether to create a temporary public HTTP-only ALB for stage/demo access."
-  type        = bool
-  default     = true
-}
-
-variable "alb_allowed_http_cidrs" {
-  description = "CIDR blocks allowed to reach the temporary stage/demo ALB over HTTP."
-  type        = list(string)
   default     = ["0.0.0.0/0"]
-}
-
-variable "alb_subnet_ids" {
-  description = "Optional subnet IDs for the temporary stage/demo ALB. Leave empty to use automatically selected VPC subnets."
-  type        = list(string)
-  default     = []
 }
 
 variable "workload_instance_type" {
@@ -87,7 +69,7 @@ variable "workload_app_image" {
 variable "workload_associate_public_ip" {
   description = "Whether the workload instance should receive a public IP."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "workload_log_retention_days" {

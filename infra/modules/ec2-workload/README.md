@@ -6,7 +6,7 @@ Terraform module for the monitored EC2 workload previously defined in `TERRAFORM
 
 - Creates an IAM role and instance profile with CloudWatch Agent and SSM Session Manager permissions.
 - Creates an HTTP-only security group. SSH is intentionally not opened.
-- Optionally creates a temporary public HTTP-only ALB for stage/demo validation.
+- Optionally exposes HTTP directly when an environment sets `allowed_http_cidrs` and `associate_public_ip_address`.
 - Looks up Amazon Linux 2 dynamically.
 - Creates Nginx access and error log groups with configurable retention.
 - Launches one EC2 instance tagged for anomaly monitoring.
@@ -19,6 +19,6 @@ Terraform module for the monitored EC2 workload previously defined in `TERRAFORM
 - No private key is generated or written to Terraform state.
 - No registry credentials are embedded in user data.
 - Administrative access should use SSM Session Manager.
-- `enable_public_http_alb` is intended for temporary stage/demo access only. Production should keep it disabled and use an HTTPS ALB/WAF design.
+- Direct public HTTP access is intended for temporary stage/demo access only. Production should use HTTPS, restricted CIDRs, and a hardened load balancer or private access path.
 
 For private images, prefer ECR and IAM-based authentication.
