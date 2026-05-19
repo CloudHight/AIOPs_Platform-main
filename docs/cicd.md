@@ -56,6 +56,7 @@ The agent needs:
 - `zip`
 - Java, for Jenkins and scanner tooling
 - `tflint`
+- `tfsec`
 - `checkov`
 - `gitleaks` preferred; standard `grep` fallback is supported
 
@@ -72,23 +73,26 @@ The current RCF and BERT training scripts still use SageMaker SDK role discovery
 1. `Checkout`
 2. `Resolve Environment`
 3. `Tooling Preflight`
-4. `Python Install`
-5. `Python Quality`
-6. `Model Build and Validation`
-7. `Use Existing Model Artifacts`
+4. `Secret Scan`
+5. `Python Install`
+6. `Python Quality`
+7. `Model Build and Validation`
+8. `Use Existing Model Artifacts`
    - runs only when `USE_EXISTING_MODEL_ARTIFACTS=true`
    - verifies `model.tar.gz`, `metadata.json`, and `evaluation.json` exist for both models before writing the Terraform handoff
-8. `Package Lambda`
-9. `Validate Terraform Handoff`
+9. `Package Lambda`
+10. `Validate Terraform Handoff`
    - verifies Jenkins artifact variables are present
    - when `DEPLOY_SAGEMAKER_ENDPOINTS=true`, verifies CPU/log model artifact URIs and image URIs are present before planning
-10. `Terraform Init`
+11. `Terraform Init`
    - validates the remote-state S3 bucket and DynamoDB lock table before init
-11. `Terraform Quality`
-12. `Terraform Plan`
-13. `Approval`
-14. `Terraform Apply`
-15. `Smoke Tests`
+12. `Terraform Quality`
+   - runs `terraform fmt`, `terraform validate`, `tflint`, and `tfsec`
+13. `Terraform Plan`
+   - runs Checkov against the saved Terraform plan
+14. `Approval`
+15. `Terraform Apply`
+16. `Smoke Tests`
 
 ## Artifact Flow
 
@@ -150,6 +154,7 @@ Jenkins always creates a saved plan:
 terraform plan -input=false -out=tfplan -var-file=jenkins.auto.tfvars.json
 terraform show -no-color tfplan > tfplan.txt
 terraform show -json tfplan > tfplan.json
+tfsec . --minimum-severity HIGH --exclude-downloaded-modules --exclude aws-ec2-no-public-ingress-sgr,aws-ec2-no-public-egress-sgr --format json --out ../../../reports/tfsec-<env>.json
 checkov -f tfplan.json --skip-check CKV_AWS_2,CKV_AWS_46,CKV_AWS_91,CKV_AWS_98,CKV_AWS_103,CKV_AWS_117,CKV_AWS_131,CKV_AWS_150,CKV_AWS_173,CKV_AWS_260,CKV_AWS_272,CKV_AWS_378,CKV2_AWS_20,CKV2_AWS_28,CKV2_AWS_57
 ```
 

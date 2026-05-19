@@ -157,6 +157,7 @@ pipeline {
           jq --version
           zip -v | head -n 2
           tflint --version
+          tfsec --version
           git --version
         '''
       }
@@ -467,7 +468,18 @@ PY
             terraform validate
             tflint --init
             tflint --recursive
+            tfsec . \
+              --minimum-severity HIGH \
+              --exclude-downloaded-modules \
+              --exclude aws-ec2-no-public-ingress-sgr,aws-ec2-no-public-egress-sgr \
+              --format json \
+              --out "../../../reports/tfsec-${TARGET_ENV_RESOLVED}.json"
           '''
+        }
+      }
+      post {
+        always {
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/tfsec-*.json'
         }
       }
     }

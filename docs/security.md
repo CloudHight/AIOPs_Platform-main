@@ -94,6 +94,7 @@ Jenkins runs:
 - `terraform fmt`
 - `terraform validate`
 - `tflint`
+- `tfsec`
 - `checkov`
 
 These gates are expected to fail the pipeline unless an exception is explicitly documented and reviewed.

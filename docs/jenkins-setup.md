@@ -26,16 +26,22 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-By default, Jenkins is not publicly exposed:
+The bootstrap example exposes the Jenkins UI publicly on port 8080:
 
 ```hcl
-associate_public_ip_address = false
-allowed_jenkins_cidrs       = []
+associate_public_ip_address = true
+allowed_jenkins_cidrs       = ["0.0.0.0/0"]
 ```
 
-Use SSM Session Manager for administration, or explicitly allow a restricted CIDR for port 8080.
+This is intended for a demo controller. SSM Session Manager remains available for administration.
 
 ## Initial Login
+
+If public UI access is enabled, get the URL:
+
+```bash
+terraform output -raw jenkins_url
+```
 
 Get the instance ID:
 

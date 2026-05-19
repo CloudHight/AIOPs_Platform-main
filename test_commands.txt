@@ -37,7 +37,7 @@ AnsiColor
 JUnit
 Multibranch Scan Webhook Trigger
 
-
+main develop release/* feature/*
 
 aws ssm start-session \
   --target <instance-id> \

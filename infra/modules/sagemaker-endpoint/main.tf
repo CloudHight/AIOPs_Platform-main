@@ -36,9 +36,21 @@ locals {
     ? local.resource_prefix_base
     : "${substr(local.resource_prefix_base, 0, 38)}-${local.resource_prefix_hash}"
   )
-  model_artifact_path   = replace(var.model_artifact_s3_uri, "s3://", "")
-  model_artifact_bucket = split("/", local.model_artifact_path)[0]
-  model_artifact_key    = trimprefix(local.model_artifact_path, "${local.model_artifact_bucket}/")
+  model_artifact_path        = replace(var.model_artifact_s3_uri, "s3://", "")
+  model_artifact_bucket      = split("/", local.model_artifact_path)[0]
+  model_artifact_key         = trimprefix(local.model_artifact_path, "${local.model_artifact_bucket}/")
+  model_image_registry       = split("/", var.model_image_uri)[0]
+  model_image_repo_ref       = trimprefix(var.model_image_uri, "${local.model_image_registry}/")
+  model_image_repo_name      = split("@", split(":", local.model_image_repo_ref)[0])[0]
+  model_image_registry_parts = split(".", local.model_image_registry)
+  model_image_is_ecr = (
+    can(regex("^[0-9]{12}$", local.model_image_registry_parts[0]))
+    && try(local.model_image_registry_parts[1] == "dkr", false)
+    && try(local.model_image_registry_parts[2] == "ecr", false)
+  )
+  model_image_ecr_repository_arn = (
+    "arn:${data.aws_partition.current.partition}:ecr:${try(local.model_image_registry_parts[3], data.aws_region.current.name)}:${try(local.model_image_registry_parts[0], data.aws_caller_identity.current.account_id)}:repository/${local.model_image_repo_name}"
+  )
   sagemaker_log_group_arn = (
     "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/*"
   )
@@ -80,6 +92,29 @@ resource "aws_iam_role_policy" "sagemaker_model_artifacts" {
           ]
         }
       ],
+      local.model_image_is_ecr ? [
+        {
+          Sid    = "AuthenticateToEcrForModelImage"
+          Effect = "Allow"
+          Action = [
+            "ecr:GetAuthorizationToken"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "PullModelImageFromEcr"
+          Effect = "Allow"
+          Action = [
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:BatchGetImage",
+            "ecr:DescribeImages",
+            "ecr:GetDownloadUrlForLayer"
+          ]
+          Resource = [
+            local.model_image_ecr_repository_arn
+          ]
+        }
+      ] : [],
       var.kms_key_arn != null ? [
         {
           Sid    = "DecryptModelArtifacts"

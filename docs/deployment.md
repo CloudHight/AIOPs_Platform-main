@@ -52,7 +52,13 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-The Jenkins stack creates an EC2 controller, Jenkins home EBS volume, instance profile, security group, and tooling needed by the pipeline. Defaults do not expose the Jenkins UI publicly.
+The Jenkins stack creates an EC2 controller, Jenkins home EBS volume, instance profile, security group, and tooling needed by the pipeline. The bootstrap example exposes the Jenkins UI publicly on port 8080 for demo access.
+
+Get the browser URL after apply:
+
+```bash
+terraform output -raw jenkins_url
+```
 
 Start an administration session through SSM:
 

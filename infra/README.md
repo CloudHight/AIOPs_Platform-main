@@ -134,14 +134,14 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-The Jenkins stack defaults to no public UI exposure:
+The Jenkins bootstrap example exposes the Jenkins UI publicly on port 8080:
 
 ```hcl
-associate_public_ip_address = false
-allowed_jenkins_cidrs       = []
+associate_public_ip_address = true
+allowed_jenkins_cidrs       = ["0.0.0.0/0"]
 ```
 
-Use SSM Session Manager for administration:
+Use SSM Session Manager for shell administration:
 
 ```bash
 terraform -chdir=infra/jenkins output -raw ssm_start_session_command
@@ -167,7 +167,7 @@ Jenkins is responsible for:
 - packaging the Lambda zip
 - writing artifact tfvars for Terraform
 - validating the remote-state backend bucket and DynamoDB lock table
-- running `terraform fmt`, `terraform init`, `terraform validate`, and scanning
+- running `terraform fmt`, `terraform init`, `terraform validate`, `tflint`, `tfsec`, Checkov, and repository exposure policy checks
 - creating and archiving a saved Terraform plan
 - requiring approval for stage/prod applies
 - applying only the saved plan

@@ -55,6 +55,8 @@ locals {
   ])
 }
 
+#checkov:skip=CKV_AWS_260: User requested public Jenkins UI access from anywhere for this demo controller.
+#tfsec:ignore:aws-ec2-no-public-ingress-sgr User requested public Jenkins UI access from anywhere for this demo controller.
 resource "aws_security_group" "jenkins" {
   name        = "${local.resource_prefix}-sg"
   description = "Jenkins controller access; administration should use SSM Session Manager"
