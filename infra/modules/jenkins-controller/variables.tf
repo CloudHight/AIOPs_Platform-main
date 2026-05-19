@@ -23,7 +23,7 @@ variable "vpc_id" {
 }
 
 variable "subnet_id" {
-  description = "Subnet ID for Jenkins. If null, the first subnet in the selected VPC is used."
+  description = "Subnet ID for Jenkins. If null, Terraform selects a subnet in the selected VPC where the requested instance type is offered."
   type        = string
   default     = null
 }
