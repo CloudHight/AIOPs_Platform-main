@@ -14,8 +14,8 @@ The current repo is a learning-oriented implementation split across SageMaker sc
 Always inspect these areas before making changes:
 
 - `README.md` — current deployment order and project description.
-- `RCF_Model/` — CPU anomaly model workflow using SageMaker Random Cut Forest.
-- `BERT_Model/` — Nginx/log anomaly classifier workflow.
+- `models/cpu-rcf/` — CPU anomaly model workflow using SageMaker Random Cut Forest.
+- `models/nginx-bert/` — Nginx/log anomaly classifier workflow.
 - `TERRAFORM_Code/` — current EC2 workload provisioning and `userdata.sh`.
 - `AIOPs_SAM/` — current Lambda orchestration code and SAM template to be migrated into Terraform.
 - `test_commands.txt` — existing manual validation commands.

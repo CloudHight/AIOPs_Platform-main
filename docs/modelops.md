@@ -1,6 +1,6 @@
 # ModelOps
 
-ModelOps turns legacy CPU and log model workflows into deployable, versioned SageMaker artifacts.
+ModelOps turns the CPU and log model workflows under `models/` into deployable, versioned SageMaker artifacts.
 
 ## Principles
 
@@ -9,21 +9,25 @@ ModelOps turns legacy CPU and log model workflows into deployable, versioned Sag
 - Terraform consumes approved immutable S3 URIs and image URIs.
 - Every model artifact should have metadata, evaluation metrics, threshold, container image URI, git commit, and Jenkins build number.
 
-## Source Workflows
+## Active Source Workflows
 
 CPU RCF model:
 
 ```text
-RCF_Model/
+models/cpu-rcf/
 ```
 
 Nginx/log BERT model:
 
 ```text
-BERT_Model/
+models/nginx-bert/
 ```
 
-Wrapper scripts live in `scripts/`.
+Jenkins calls wrapper scripts in `scripts/`, and those wrappers execute code from the model directories above.
+
+## Migration History
+
+The CPU workflow was migrated from `RCF_Model/` to `models/cpu-rcf/`. The log workflow was migrated from `BERT_Model/` to `models/nginx-bert/`. The legacy folders are not active architecture and are not used by Jenkins.
 
 ## Jenkins Flow
 

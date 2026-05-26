@@ -100,7 +100,7 @@ variable "log_retention_days" {
 }
 
 variable "kms_key_arn" {
-  description = "Optional KMS key ARN for Lambda logs and SecureString parameter reads."
+  description = "Optional KMS key ARN for Lambda logs, encrypted runtime data stores, queues, secrets, and SecureString parameter reads."
   type        = string
   default     = null
 }

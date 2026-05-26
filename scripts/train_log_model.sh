@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL_DIR="${ROOT_DIR}/BERT_Model"
+MODEL_DIR="${ROOT_DIR}/models/nginx-bert"
 DIST_DIR="${ROOT_DIR}/dist/modelops/nginx-bert"
 
 : "${MODEL_ARTIFACT_BUCKET:?MODEL_ARTIFACT_BUCKET is required for log model dataset upload/training}"

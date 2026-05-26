@@ -1,5 +1,7 @@
 # `AIOPs_SAM/samconfig.toml` Explanation
 
+> Legacy reference only: do not use this SAM configuration for deployment. The active deployment path is Jenkins plus Terraform under `infra/`.
+
 ## Purpose
 
 This file stores default AWS SAM CLI configuration for building, validating, packaging, syncing, local development, and especially deployment.

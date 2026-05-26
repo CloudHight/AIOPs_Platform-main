@@ -2,10 +2,12 @@
 
 ModelOps integration for the AIOps platform.
 
-The legacy training code remains in:
+This directory is the active source for model training, validation, packaging inputs, and SageMaker inference helper code.
 
-- `../RCF_Model/`
-- `../BERT_Model/`
+The model source code lives in:
+
+- `cpu-rcf/`
+- `nginx-bert/`
 
 Jenkins should use the wrapper scripts in `../scripts/`:
 
@@ -16,6 +18,10 @@ Jenkins should use the wrapper scripts in `../scripts/`:
 5. `write_model_tfvars.sh`
 
 Terraform consumes only approved artifact URIs and image URIs through `infra/modules/sagemaker-endpoint`.
+
+## Migration History
+
+The CPU workflow was migrated from `RCF_Model/` into `cpu-rcf/`. The Nginx/log workflow was migrated from `BERT_Model/` into `nginx-bert/`. Those legacy paths are not used by Jenkins or Terraform.
 
 ## Artifact Layout
 

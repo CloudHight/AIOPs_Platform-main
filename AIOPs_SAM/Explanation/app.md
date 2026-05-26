@@ -1,5 +1,7 @@
 # `AIOPs_SAM/app.py` Explanation
 
+> Legacy reference only: this explains the old monolithic SAM Lambda. Active Lambda code lives in `lambda/src/aiops/`.
+
 ## Purpose
 
 This file contains the main AWS Lambda implementation for the anomaly-detection and auto-remediation system. It monitors tagged EC2 instances, fetches CPU metrics and nginx logs, invokes SageMaker endpoints for anomaly scoring, stores results in DynamoDB, creates Jira tickets, sends SNS notifications, emits EventBridge events, and schedules or executes remediation actions.

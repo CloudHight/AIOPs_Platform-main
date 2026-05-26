@@ -1,5 +1,7 @@
 # `AIOPs_SAM/template.yaml` Explanation
 
+> Legacy reference only: do not deploy this template. Active infrastructure lives in `infra/modules/` and `infra/envs/`.
+
 ## Purpose
 
 This file is the AWS SAM and CloudFormation template for the anomaly-detection system. It defines the Lambda function, its permissions, supporting AWS resources, monitoring resources, optional Managed Grafana resources, and stack outputs.

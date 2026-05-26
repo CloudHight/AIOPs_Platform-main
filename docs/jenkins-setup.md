@@ -116,9 +116,9 @@ aws-deploy-role-arn-prod
 
 Additional pre-existing deploy roles can still be listed in `allowed_deploy_role_arns`.
 
-## Model Training Caveat
+## Model Training Requirements
 
-The controller has the tools needed to launch SageMaker jobs, but the legacy `RCF_Model` and `BERT_Model` scripts still need one more hardening step for fully unattended Jenkins training: pass the SageMaker execution role explicitly instead of relying on `get_execution_role()`.
+The controller has the tools needed to launch SageMaker jobs from `models/cpu-rcf` and `models/nginx-bert`. Store the SageMaker execution role ARN in the Jenkins `sagemaker-execution-role-arn` secret text credential so the model launchers do not rely on Notebook or Studio role discovery.
 
 Required training-role permissions include:
 
@@ -131,4 +131,4 @@ Required training-role permissions include:
 - S3 read/write for training data and model artifacts
 - CloudWatch Logs write/read for training logs
 
-The notebook or Studio path remains useful for experimentation, but repeatable delivery should run through Jenkins launching SageMaker jobs.
+Notebook or Studio runs are experimentation only. Repeatable delivery runs through Jenkins, which launches SageMaker jobs from `models/cpu-rcf/` and `models/nginx-bert/`.

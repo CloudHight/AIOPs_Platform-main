@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL_DIR="${ROOT_DIR}/RCF_Model"
+MODEL_DIR="${ROOT_DIR}/models/cpu-rcf"
 DIST_DIR="${ROOT_DIR}/dist/modelops/cpu-rcf"
 
 mkdir -p "${DIST_DIR}"

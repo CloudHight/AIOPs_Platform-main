@@ -139,12 +139,19 @@ resource "aws_iam_role_policy" "lambda" {
       {
         Effect = "Allow"
         Action = [
-          "kms:Decrypt"
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:GenerateDataKey"
         ]
         Resource = local.kms_policy_resources
         Condition = {
           StringEquals = {
-            "kms:ViaService" = "ssm.${data.aws_region.current.name}.amazonaws.com"
+            "kms:ViaService" = [
+              "dynamodb.${data.aws_region.current.name}.amazonaws.com",
+              "secretsmanager.${data.aws_region.current.name}.amazonaws.com",
+              "ssm.${data.aws_region.current.name}.amazonaws.com",
+              "sqs.${data.aws_region.current.name}.amazonaws.com"
+            ]
           }
         }
       },

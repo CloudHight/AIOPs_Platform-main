@@ -1,8 +1,10 @@
-# Terraform Migration Map
+# Migration Map
 
-This map defines where the current learning/demo resources are moving during the Terraform migration.
+This map records where the original learning/demo resources were migrated. It is migration history, not active deployment guidance.
 
-| Current source | Current resource | Target Terraform module | Notes/Risks |
+`AIOPs_SAM/` is frozen as a read-only reference and is not an active deployment path. Remove it only after Jenkins Terraform apply and smoke tests pass for the target release. See `docs/sam-migration-freeze.md` for the behavior comparison and deletion gate.
+
+| Original source | Original resource | Active target | Notes/Risks |
 |---|---|---|---|
 | `TERRAFORM_Code/main.tf` | EC2 instance, security group, instance profile | `infra/modules/ec2-workload` | Migrated into module and wired into `infra/envs/dev`; SSM-only access preserved, no SSH/key material. |
 | `TERRAFORM_Code/userdata.sh` | Nginx, Docker app, CloudWatch Agent bootstrap | `infra/modules/ec2-workload` | Migrated to `templates/userdata.sh.tftpl`; no embedded registry credentials. |
@@ -16,5 +18,5 @@ This map defines where the current learning/demo resources are moving during the
 | `AIOPs_SAM/template.yaml` | Jira credentials secret | `infra/modules/secrets-manager` | Converted as secret shell only; secret values must be populated out of band. |
 | `AIOPs_SAM/template.yaml` | CloudWatch dashboard and alarms | `infra/modules/cloudwatch-observability` | Converted for dashboard and DLQ alarm. |
 | `AIOPs_SAM/template.yaml` | Optional Managed Grafana | `infra/modules/cloudwatch-observability` | Converted as optional workspace; old custom bootstrap Lambda is not carried forward because its source is not present. |
-| `RCF_Model/` scripts | CPU SageMaker endpoint | `infra/modules/sagemaker-endpoint` | ModelOps scripts package/upload artifacts; Terraform deploys endpoint resources from immutable artifact URI. |
-| `BERT_Model/` scripts | Nginx/log SageMaker endpoint | `infra/modules/sagemaker-endpoint` | ModelOps scripts package/upload artifacts; Terraform deploys endpoint resources from immutable artifact URI. |
+| `RCF_Model/` scripts | CPU model workflow | `models/cpu-rcf/` and `infra/modules/sagemaker-endpoint` | ModelOps scripts package/upload artifacts; Terraform deploys endpoint resources from immutable artifact URI. |
+| `BERT_Model/` scripts | Nginx/log model workflow | `models/nginx-bert/` and `infra/modules/sagemaker-endpoint` | ModelOps scripts package/upload artifacts; Terraform deploys endpoint resources from immutable artifact URI. |

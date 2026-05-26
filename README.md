@@ -2,7 +2,7 @@
 
 Terraform and Jenkins driven AIOps platform for detecting CPU and Nginx/log anomalies on an EC2 workload, creating operational incidents, and safely scheduling remediation.
 
-The repository preserves the original learning-oriented model code while adding a senior delivery structure:
+The repository now uses the senior delivery structure as the active implementation:
 
 - Terraform owns AWS infrastructure.
 - Jenkins orchestrates validation, model training, Lambda packaging, Terraform plan/apply, and smoke tests.
@@ -53,14 +53,14 @@ Detailed design: [docs/architecture.md](docs/architecture.md).
 │   ├── src/aiops/
 │   └── tests/
 ├── models/
-├── scripts/
-├── RCF_Model/
-├── BERT_Model/
-├── TERRAFORM_Code/
-└── AIOPs_SAM/
+│   ├── cpu-rcf/
+│   └── nginx-bert/
+└── scripts/
 ```
 
-Legacy folders remain for source model/training context. New delivery paths live under `infra/`, `lambda/`, `models/`, and `scripts/`.
+Active delivery paths live under `infra/`, `lambda/`, `models/`, and `scripts/`.
+
+Migration history: `TERRAFORM_Code/` was migrated into `infra/modules/ec2-workload`, `RCF_Model/` into `models/cpu-rcf/`, `BERT_Model/` into `models/nginx-bert/`, and `AIOPs_SAM/` into `lambda/src/aiops/` plus `infra/modules/`. `AIOPs_SAM/` is retained only as frozen migration reference and must not be used for deployment; see [docs/sam-migration-freeze.md](docs/sam-migration-freeze.md).
 
 ## Prerequisites
 

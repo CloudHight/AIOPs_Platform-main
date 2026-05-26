@@ -66,7 +66,7 @@ The `infra/jenkins` bootstrap installs the baseline tools on the controller. Pro
 
 ## SageMaker Training Prerequisite
 
-The current RCF and BERT training scripts still use SageMaker SDK role discovery in places. To run them from Jenkins reliably, the scripts should be refactored to accept an explicit SageMaker execution role ARN and S3 output prefix. The Jenkins controller stack provides tooling and IAM hooks for role assumption, but the deploy/training roles must include SageMaker, S3, CloudWatch Logs, and `iam:PassRole` permissions.
+The model training scripts under `models/cpu-rcf/` and `models/nginx-bert/` support the `SAGEMAKER_EXECUTION_ROLE_ARN` environment variable for Jenkins-driven training. The deploy/training roles must include SageMaker, S3, CloudWatch Logs, and `iam:PassRole` permissions.
 
 ## Pipeline Stages
 
