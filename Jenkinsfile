@@ -212,11 +212,10 @@ PY
         sh '''
           set -eu
           . .venv/bin/activate
-          python -m compileall -q lambda/src scripts
-          ruff check lambda/src scripts
+          mkdir -p reports
+          python -m compileall -q lambda/src scripts models
+          ruff check lambda/src scripts models
           mypy --config-file lambda/pyproject.toml lambda/src
-          bandit -q -r lambda/src -f json -o reports/bandit.json
-          pip-audit --cache-dir reports/.pip-audit-cache -r lambda/requirements.txt -r models/requirements.txt -f json -o reports/pip-audit.json
           TEST_PATHS=""
           for path in lambda/tests models/tests; do
             if [ -d "${path}" ]; then
@@ -227,6 +226,31 @@ PY
             pytest ${TEST_PATHS} --junitxml=reports/pytest.xml
           else
             echo "No test directories found; failing because senior delivery requires tests." >&2
+            exit 1
+          fi
+          bandit -q -r lambda/src -f json -o reports/bandit.json
+          if ! pip-audit --cache-dir reports/.pip-audit-cache -r lambda/requirements.txt -r models/requirements.txt -f json -o reports/pip-audit.json; then
+            python - <<'PY'
+import json
+from pathlib import Path
+
+report_path = Path("reports/pip-audit.json")
+if not report_path.exists():
+    raise SystemExit("pip-audit failed before writing reports/pip-audit.json")
+
+report = json.loads(report_path.read_text(encoding="utf-8"))
+print("pip-audit found vulnerable dependencies:")
+for dependency in report.get("dependencies", []):
+    vulns = dependency.get("vulns") or []
+    if not vulns:
+        continue
+    name = dependency.get("name", "unknown")
+    version = dependency.get("version", "unknown")
+    for vuln in vulns:
+        vuln_id = vuln.get("id", "unknown")
+        fixes = ", ".join(vuln.get("fix_versions") or []) or "no fixed version listed"
+        print(f"- {name}=={version}: {vuln_id}; fix: {fixes}")
+PY
             exit 1
           fi
         '''

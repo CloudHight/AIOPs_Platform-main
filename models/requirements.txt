@@ -4,3 +4,7 @@ scikit-learn>=1.4,<2
 sagemaker>=2.240,<3
 requests>=2.33.0,<3
 urllib3>=2.7.0,<3
+
+# Blocked by pip-audit MAL-2026-4750. This is pulled transitively by
+# SageMaker tooling and has no fixed version in the advisory.
+fastapi!=0.136.3
